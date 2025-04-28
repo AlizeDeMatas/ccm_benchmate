@@ -146,6 +146,7 @@ class UniProt:
                     if ref["source"]["name"].lower() == "pubmed":
                         self.references.append(ref["source"]["id"])
 
+        self.references=list(set(self.references))
         return self
 
     def __str__(self):

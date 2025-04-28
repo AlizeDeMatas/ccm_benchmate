@@ -19,3 +19,4 @@ git+https://github.com/facebookresearch/detectron2.git@ff53992b1985b63bd3262b5a3
 git+https://github.com/celalp/usearch-molecules.git@cc7450978c7f448846ec527270875b71e9e20f5b
 chonkie[st, model2vec]
 pysam
+lxml

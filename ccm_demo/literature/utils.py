@@ -141,14 +141,12 @@ def extract_pdfs_from_tar(file, destination):
         else:
             read_str="r"
 
-        pdfs=[]
+        paths=[]
         with tarfile.open(file, read_str) as tar:
             for member in tar.getmembers():
-                pdfs.append(member.name)
-        paths=[]
-        for pdf in pdfs:
-            tar.extract(pdf, destination)
-            paths.append(os.path.abspath(os.path.join(destination, pdf)))
+                if member.name.endswith("pdf"):
+                    tar.extract(member, destination)
+                    paths.append(os.path.abspath(os.path.join(destination, file, member.name)))
 
         return paths
 

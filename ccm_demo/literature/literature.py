@@ -13,8 +13,6 @@ class LitSearch:
     def __init__(self, pubmed_api_key=None):
         """
         create the ncessary framework for searching
-        :param pubmed_url:
-        :param arxiv_url:
         :param pubmed_api_key:
         """
         self.pubmed_key = pubmed_api_key
@@ -59,35 +57,48 @@ class LitSearch:
             to_ret= ids
         return to_ret
 
+#TODO bibtex support to backwards pull abstracts
 class Paper:
-    def __init__(self, id):
-        self.source = None
-        self.download_link = None
+    def __init__(self, source, id=None, filepath=None, destination=None):
+        if id is None and filepath is not None:
+            self.file_paths=filepath
+        else:
+            self.file_paths = None
+            self.source = source
+            self.download_link = None
+            self.title = None
+            self.abstract = None
+            self.id = id
+            self.get_meta()
+            self.download(destination)
         self.table_interpretation = None
         self.figure_interpretation = None
-        self.id = id
-        self.title = None
-        self.abstract = None
         self.text = None
         self.figures = None
         self.tables = None
+        #self.process()
 
-    def get_meta(self, source):
-        if source =="pubmed":
+    #TODO get mesh, get references?
+    def get_meta(self):
+        if self.source =="pubmed":
             response=requests.get("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id={}".format(self.id))
             response.raise_for_status()
             soup=bs(response.text, "xml")
             self.title = soup.find("ArticleTitle").text
-            self.abstract = soup.find("AbstractText").text
-            self.source=source
-            ids=[item for item in soup.find_all("ArticleIdList") if item.name=="PubmedData"]
-            pmc=[item.text for item in list(ids[0].children) if item["IdType"] == "pmc"][0]
-            pmc_url = "https://www.ncbi.nlm.nih.gov/pmc/utils/oa/oa.fcgi?id={}".format(pmc)
-            response = requests.get(pmc_url)
-            response.raise_for_status()
-            self.download_link=bs(response.text, "xml").find_all("link")[0]["href"]
+            abstract=soup.find("AbstractText")
+            if abstract is not None:
+                self.abstract = soup.find("AbstractText").text
+            id_list=[item for item in soup.find_all("PubmedData")[0] if item.name=="ArticleIdList"][0]
+            pmc = [item.text for item in id_list if item["IdType"] == "pmc"]
+            if len(pmc) ==1 :
+                pmc_url = "https://www.ncbi.nlm.nih.gov/pmc/utils/oa/oa.fcgi?id={}".format(pmc[0])
+                response = requests.get(pmc_url)
+                response.raise_for_status()
+                links=bs(response.text, "xml").find_all("link")
+                if len(links) > 0:
+                    self.download_link=links[0]["href"].replace("ftp://", "https://")
 
-        elif source == "arxiv":
+        elif self.source == "arxiv":
             response = requests.get("http://export.arxiv.org/api/query?search_query=id:{}".format(self.id))
             response.raise_for_status()
             soup=bs(response.text, "xml")
@@ -95,10 +106,17 @@ class Paper:
             if self.abstract is None:
                 raise NoPapersError("could not find a paper with id {}".format(self.id))
             else:
-                self.title = soup.find("title").text
-                self.source=source
-                pdf=[item["href"] for item in soup.find_all("link") if item.attrs["type"] == "application/pdf"]
-                self.download_link = pdf
+                titles = soup.find_all("title")
+                for title in titles:
+                    if "Arxiv Query" in title.text:
+                        continue
+                    else:
+                        self.title = title.text
+                links = soup.find_all("link")
+                for link in links:
+                    if link.has_attr("href") and link.has_attr("type"):
+                        if link["type"] == "application/pdf":
+                            self.download_link = link["href"]
         else:
             raise NotImplementedError("source must be pubmed or arxiv other sources are not implemented")
 
@@ -108,9 +126,10 @@ class Paper:
         if self.source == "pubmed":
             download = requests.get(self.download_link, stream=True)
             download.raise_for_status()
-            with open("{}/{}.tar.gz".format(destination, self.id), "wb") as f:
+            name="{}/{}.tar.gz".format(destination, self.id)
+            with open(name, "wb") as f:
                 f.write(download.content)
-            file_paths=extract_pdfs_from_tar(destination, destination)
+            file_paths=extract_pdfs_from_tar(name, destination)
         elif self.source == "arxiv":
             download = requests.get(self.download_link, stream=True)
             download.raise_for_status()
@@ -119,8 +138,8 @@ class Paper:
             file_paths=os.path.join("{}/{}.pdf".format(destination, self.id))
         return file_paths
 
-    def process(self, pdf):
-        article_text, figures, tables, figure_interpretation, table_interpretation = process_pdf(pdf)
+    def process(self):
+        article_text, figures, tables, figure_interpretation, table_interpretation = process_pdf(self.file_path)
         self.text=article_text
         self.figures=figures
         self.tables=tables
