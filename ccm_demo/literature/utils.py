@@ -7,9 +7,14 @@ import pytesseract
 import layoutparser as lp
 
 import pymupdf
-from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor
+import torch
+
+from adapters import AutoAdapterModel
+from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor, AutoTokenizer
 from qwen_vl_utils import process_vision_info
-from chonkie import SemanticChunker
+from chonkie import SemanticChunker, Model2VecEmbeddings
+from colpali_engine.models import ColPali, ColPaliProcessor
+
 
 from ccm_demo.literature.configs import *
 
@@ -74,53 +79,83 @@ def process_pdf(pdf, lp_model=paper_processing_config["lp_model"], interpret_fig
 
         page_text = pytesseract.image_to_string(pix)
         texts.append(page_text)
-    article_text = "\n".join(texts)
+    texts=[text.replace("\n", " ").replace("  ", " ") for text in texts]
+    article_text = " ".join(texts)
 
     if interpret_figures or interpret_tables:
-        vl_model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-            vl_model, torch_dtype="auto", device_map="auto", cache_dir="models",
+        model_vl = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+            vl_model, torch_dtype="auto", device_map="auto"
         )
         processor = AutoProcessor.from_pretrained(vl_model)
 
     figure_interpretation = []
     if interpret_figures:
         for figure in figures:
-            figure_interpretation.append(interpret_image(figure, figure_prompt, processor, lp_model, max_tokens, device,))
+            figure_interpretation.append(interpret_image(figure, figure_prompt, processor, model_vl, max_tokens, device,))
 
     table_interpretation = []
     if interpret_tables:
         for table in tables:
-            table_interpretation.append(interpret_image(table, table_prompt, processor, lp_model, max_tokens, device,))
+            table_interpretation.append(interpret_image(table, table_prompt, processor, model_vl, max_tokens, device,))
 
     return article_text, figures, tables, figure_interpretation, table_interpretation
 
 
 #TODO image embedding model, same function for figures and tables
-def embed_images(image, model):
-    pass
+def embed_images(images, model_dir=paper_processing_config["image_embedding_model"], device="cuda:0"):
+
+    model = ColPali.from_pretrained(
+        model_dir,
+        torch_dtype=torch.bfloat16,
+        device_map=device,  # or "mps" if on Apple Silicon
+    ).eval()
+    processor = ColPaliProcessor.from_pretrained(model_dir)
+    batch_images = processor.process_images(images).to(model.device)
+    with torch.no_grad():
+        image_embeddings = model(**batch_images)
+
+    ems = []
+    for i in range(image_embeddings.shape[0]):
+        ems.append(image_embeddings[i, :, :])
+    return ems
 
 
 # same model for article text and captions
-def embed_text(text, embedding_model, splitting_strategy="semantic",
+def embed_text(text, splitting_strategy="semantic",
                params=paper_processing_config["chunking"]):
+
+    embeddings = Model2VecEmbeddings(params["model"])
 
     if splitting_strategy == "semantic":
         chunker = SemanticChunker(
-            embedding_model=params["model"],
+            embedding_model=embeddings,
             threshold=params["threshold"],  # Similarity threshold (0-1) or (1-100) or "auto"
             chunk_size=params["chunk_size"],  # Maximum tokens per chunk
             min_sentences=params["min_sentences"],  # Initial sentences per chunk,
             return_type=params["return_type"]  # return a list of strings
         )
         chunks = chunker.chunk(text)
+
     elif splitting_strategy == "none":
         chunks=[text]
     else:
         raise NotImplementedError("Semantic splitting and none are the only implemented methods.")
 
+    embeddings = []
     for chunk in chunks:
-        #TODO embed
-        pass
+        model = AutoAdapterModel.from_pretrained(params["text_embedding_model"])
+        model.load_adapter(params["text_embedding_model"]+"/adapter",
+                           source="hf", load_as="specter2", set_active=True)
+        tokenizer = AutoTokenizer.from_pretrained(params["text_embedding_model"])
+        inputs = tokenizer(chunk, padding=True, truncation=True,
+                           return_tensors="pt",
+                           return_token_type_ids=False, max_length=512)
+        output = model(**inputs)
+        output=output.last_hidden_state[0]
+        #get mean embedding
+        ems=torch.mean(output, dim=0)
+        embeddings.append(ems)
+    return embeddings
 
 
 def extract_pdfs_from_tar(file, destination):

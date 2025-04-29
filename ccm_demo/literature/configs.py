@@ -2,13 +2,13 @@ import os
 
 #TODO Add paths
 paper_processing_config={
-    "lp_model":{"config":os.path.abspath(os.path.join(os.path.dirname(__file__),"models/config.yaml")),
-                "model":os.path.abspath(os.path.join(os.path.dirname(__file__),"models/model_final.pth"))},
-    "vl_model":os.path.abspath(os.path.join(os.path.dirname(__file__),"models/qwen2.5_7B_instruct")),
-    "text_embedding_model":os.path.abspath(os.path.join(os.path.dirname(__file__),"models/text_model")),
-    "image_embedding_model":os.path.abspath(os.path.join(os.path.dirname(__file__),"models/colpali_")),
+    "lp_model":{"config":os.path.abspath(os.path.join(os.path.dirname(__file__),"models/lp_model/config.yaml")),
+                "model":os.path.abspath(os.path.join(os.path.dirname(__file__),"models/lp_model/model_final.pth"))},
+    "vl_model":os.path.abspath(os.path.join(os.path.dirname(__file__),"models/qwen25_7B_instruct")),
+    "text_embedding_model":os.path.abspath(os.path.join(os.path.dirname(__file__),"models/specter2")),
+    "image_embedding_model":os.path.abspath(os.path.join(os.path.dirname(__file__),"models/colpali13")),
     "chunking":{
-        "model":os.path.abspath(os.path.join(os.path.dirname(__file__),"models/chunking_model")),
+        "model":os.path.abspath(os.path.join(os.path.dirname(__file__),"models/m2v_model/")),
         "threshold":"auto",
         "min_sentences":1,
         "chunk_size":100,

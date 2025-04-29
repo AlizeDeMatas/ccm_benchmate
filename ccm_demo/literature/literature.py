@@ -78,7 +78,7 @@ class Paper:
         self.tables = None
         #self.process()
 
-    #TODO get mesh, get references?
+    #TODO get mesh?, get references?
     def get_meta(self):
         if self.source =="pubmed":
             response=requests.get("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id={}".format(self.id))
