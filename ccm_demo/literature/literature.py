@@ -1,4 +1,5 @@
 import os.path
+import warnings
 
 from bs4 import BeautifulSoup as bs
 import requests
@@ -57,85 +58,59 @@ class LitSearch:
             to_ret= ids
         return to_ret
 
-#TODO bibtex support to backwards pull abstracts
+
 class Paper:
-    def __init__(self, source, id=None, filepath=None, destination=None):
-        if id is None and filepath is not None:
-            self.file_paths=filepath
-        else:
-            self.file_paths = None
-            self.source = source
-            self.download_link = None
-            self.title = None
-            self.abstract = None
-            self.id = id
-            self.get_meta()
-            self.download(destination)
+    def __init__(self, paper_id, id_type="pubmed", filepath=None, citations=False, references=False, related_works=False):
         self.table_interpretation = None
         self.figure_interpretation = None
-        self.text = None
-        self.figures = None
         self.tables = None
-        #self.process()
+        self.figures = None
+        self.text = None
+        if paper_id is None and filepath is not None:
+            self.file_paths=filepath
+        else:
+            self.id_type=id_type
+            self.id=paper_id
+            self.paper_info=search_openalex(id_type=self.id_type, paper_id=self.id, cited_by=citations,
+                                            references=references, related_works=related_works)
+            if "best_oa_location" in self.paper_info.keys():
+                if self.paper_info["best_oa_location"]["pdf_url"] is not None:
+                    self.download_link=self.paper_info["best_oa_location"]["pdf_url"]
+                else:
+                    warnings.warn("Did not find a direct pdf download link")
+            else:
+                warnings.warn("There is no place to download the paper, this paper might not be open access")
 
-    #TODO get mesh?, get references?
-    def get_meta(self):
-        if self.source =="pubmed":
-            response=requests.get("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id={}".format(self.id))
+        self.abstract=None
+
+    def get_abstract(self):
+
+        abstract_text=None
+        if self.id_type =="pubmed":
+            response=requests.get("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id={}".format(self.paper_id))
             response.raise_for_status()
             soup=bs(response.text, "xml")
-            self.title = soup.find("ArticleTitle").text
             abstract=soup.find("AbstractText")
             if abstract is not None:
-                self.abstract = soup.find("AbstractText").text
-            id_list=[item for item in soup.find_all("PubmedData")[0] if item.name=="ArticleIdList"][0]
-            pmc = [item.text for item in id_list if item["IdType"] == "pmc"]
-            if len(pmc) ==1 :
-                pmc_url = "https://www.ncbi.nlm.nih.gov/pmc/utils/oa/oa.fcgi?id={}".format(pmc[0])
-                response = requests.get(pmc_url)
-                response.raise_for_status()
-                links=bs(response.text, "xml").find_all("link")
-                if len(links) > 0:
-                    self.download_link=links[0]["href"].replace("ftp://", "https://")
+                abstract_text = soup.find("AbstractText").text
 
-        elif self.source == "arxiv":
-            response = requests.get("http://export.arxiv.org/api/query?search_query=id:{}".format(self.id))
+        elif self.id_type == "arxiv":
+            response = requests.get("http://export.arxiv.org/api/query?search_query=id:{}".format(self.paper_id))
             response.raise_for_status()
             soup=bs(response.text, "xml")
-            self.abstract = soup.find("summary").text
-            if self.abstract is None:
-                raise NoPapersError("could not find a paper with id {}".format(self.id))
-            else:
-                titles = soup.find_all("title")
-                for title in titles:
-                    if "Arxiv Query" in title.text:
-                        continue
-                    else:
-                        self.title = title.text
-                links = soup.find_all("link")
-                for link in links:
-                    if link.has_attr("href") and link.has_attr("type"):
-                        if link["type"] == "application/pdf":
-                            self.download_link = link["href"]
+            abstract_text = soup.find("summary").text
         else:
             raise NotImplementedError("source must be pubmed or arxiv other sources are not implemented")
 
+        self.abstract=abstract_text
         return self
 
     def download(self, destination):
-        if self.source == "pubmed":
-            download = requests.get(self.download_link, stream=True)
-            download.raise_for_status()
-            name="{}/{}.tar.gz".format(destination, self.id)
-            with open(name, "wb") as f:
-                f.write(download.content)
-            file_paths=extract_pdfs_from_tar(name, destination)
-        elif self.source == "arxiv":
-            download = requests.get(self.download_link, stream=True)
-            download.raise_for_status()
-            with open("{}/{}.pdf".format(destination, self.id), "wb") as f:
-                f.write(download.content)
-            file_paths=os.path.join("{}/{}.pdf".format(destination, self.id))
+        download = requests.get(self.download_link, stream=True)
+        download.raise_for_status()
+        with open("{}/{}.pdf".format(destination, self.id), "wb") as f:
+            f.write(download.content)
+        file_paths=os.path.abspath(os.path.join("{}/{}.pdf".format(destination, self.id)))
         return file_paths
 
     def process(self):

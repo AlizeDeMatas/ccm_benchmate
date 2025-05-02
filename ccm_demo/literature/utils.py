@@ -1,6 +1,6 @@
-import os
-import copy
 import tarfile
+import warnings
+import time
 
 from PIL import Image
 import pytesseract
@@ -8,6 +8,8 @@ import layoutparser as lp
 
 import pymupdf
 import torch
+import requests
+import json
 
 from adapters import AutoAdapterModel
 from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor, AutoTokenizer
@@ -193,4 +195,117 @@ def extract_pdfs_from_tar(file, destination):
         print(f"Error: Could not open or read {file}. It might be corrupted or not a valid tar.gz file.")
         return None
 
+def filter_openalex_response(response, fields=None):
+    if fields is None:
+        fields=["id", "doi", "title", "topics", "keywords", "concepts",
+                "mesh", "best_oa_location", "referenced_works", "related_works",
+                "cited_by_api_url", "datasets"]
+    new_response = {}
+    for field in fields:
+        if field in response.keys():
+            new_response[field] = response[field]
+    return new_response
 
+
+#TODO should I just this thing and ignore semantic scholar?
+def search_openalex(id_type, paper_id, fields=None, cited_by=False, references=False, related_works=False):
+    base_url = "https://api.openalex.org/works/{}"
+    if id_type == "doi":
+        paper_id = f"https://doi.org/:{paper_id}"
+    elif paper_id == "MAG":
+        paper_id = f"mag:{paper_id}"
+    elif id_type == "pubmed":
+        paper_id = f"pmid:{paper_id}"
+    elif id_type == "pmcid":
+        paper_id = f"pmcid:{paper_id}"
+
+    url = base_url.format(paper_id)
+    response = requests.get(url)
+    response.raise_for_status()
+    response = json.loads(response.content.decode().strip())
+    new_response = filter_openalex_response(response, fields)
+
+    if cited_by:
+        if "cited_by_api_url" in new_response.keys():
+            time.sleep(1)
+            cited_by=requests.get(new_response["cited_by_api_url"])
+            cited_by.raise_for_status()
+            cited_by = json.loads(cited_by.content.decode().strip())
+            cited_by = cited_by["results"]
+            cited_by_list = []
+            for cited in cited_by:
+                cited_by_list.append(filter_openalex_response(cited, fields))
+            new_response["cited_by"] = cited_by_list
+
+    if references:
+        new_response["reference_details"]=[]
+        count=0
+        while count < 10:
+            for i in range(len("referenced_works")):
+                ref_id=new_response["referenced_works"][i].split("/").pop()
+                url=base_url.format(ref_id)
+                ref=requests.get(url)
+                ref.raise_for_status()
+                ref=json.loads(ref.content.decode().strip())
+                count=count+1
+                ref=filter_openalex_response(ref, fields)
+                new_response["reference_details"].append(ref)
+        else:
+            time.sleep(1)
+
+    if related_works:
+        new_response["related_works_details"]=[]
+        count=0
+        while count < 10:
+            for i in range(len("related_works")):
+                ref_id=new_response["related_works"][i].split("/").pop()
+                url=base_url.format(ref_id)
+                ref=requests.get(url)
+                ref.raise_for_status()
+                ref=json.loads(ref.content.decode().strip())
+                count=count+1
+                ref=filter_openalex_response(ref, fields)
+                new_response["related_works_details"].append(ref)
+        else:
+            time.sleep(1)
+
+    return new_response
+
+
+def search_semantic_scholar(paper_id, id_type, api_key=None, fields=None):
+    base_url="https://api.semanticscholar.org/graph/v1/paper/{}?fields={}"
+    if id_type == "doi":
+        paper_id=f"DOI:{paper_id}"
+    elif id_type == "arxiv":
+        paper_id=f"ARXIV:{paper_id}"
+    elif paper_id == "mag":
+        paper_id=f"MAG:{paper_id}"
+    elif id_type == "pubmed":
+        paper_id=f"PMID:{paper_id}"
+    elif id_type == "pmcid":
+        paper_id=f"PMCID:{paper_id}"
+    elif id_type == "ACL":
+        paper_id=f"ACL:{paper_id}"
+
+    available_fields=["paperId", "corpusID", "externalIds", "url", "title", "abstract", "venue",
+                      "publicationVenue", "year", "referenceCount", "citationCount", "influentialCitationCount",
+                      "isOpenAccess", "openAccessPdf", "fieldsOfStudy", "s2FieldsOfStudy",
+                      "publicationTypes", "publicationDate", "journal", "citationStyles", "authors",
+                      "citations", "references", "embedding", "tldr"]
+    acceptable_fields=[]
+    for field in fields:
+        if field in available_fields:
+            acceptable_fields.append(field)
+        else:
+            warnings.warn("field '{}' not available".format(field))
+
+    if api_key is not None:
+        headers = {
+            'X-API-Key': api_key,
+            'Accept': 'application/json'
+        }
+    url=base_url.format(paper_id, ",".join(acceptable_fields))
+    response = requests.get(url)
+    response.raise_for_status()
+    response=json.loads(response.content.decode().strip())
+    return response
