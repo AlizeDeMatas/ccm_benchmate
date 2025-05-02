@@ -1,7 +1,5 @@
-import os
-import json
+import warnings
 
-import requests
 import pandas as pd
 
 from ccm_demo.protein.utils import *
@@ -23,34 +21,37 @@ class UniProt:
         self.id = None
         self.uniprot_id = uniprot_id
         self.json = self.gather()
-        self.process_uniprot()
-        self.get_description()
-        if "citationCrossReferences" in self.json:
-            self.references = self.extract_references()
-        else:
-            self.references = []
-        self.get_xrefs()
-        self.get_features()
-        self.get_comments()
-        self.get_variations()
-        self.cross_references = self.get_xrefs()
-        self.interactions=Interactions(self, search_intact=search_intact, **kwargs)
-        self.isoforms=Isoforms(self)
-        self.mutagenesis=Mutagenesis(self)
-        if consolidate_refs:
-            self.consolidate_references()
+        if self.json is not None:
+            self.process_uniprot()
+            self.get_description()
+            if "citationCrossReferences" in self.json:
+                self.references = self.extract_references()
+            else:
+                self.references = []
+            self.get_xrefs()
+            self.get_features()
+            self.get_comments()
+            self.get_variations()
+            self.cross_references = self.get_xrefs()
+            self.interactions=Interactions(self, search_intact=search_intact, **kwargs)
+            self.isoforms=Isoforms(self)
+            self.mutagenesis=Mutagenesis(self)
+            if consolidate_refs:
+                self.consolidate_references()
 
 
     def gather(self):
         url = urls["base_response"].format(self.uniprot_id)
         response = requests.get(url, headers=headers)
-        response.raise_for_status()
+        content=warn_for_status(response)
+        if content is not None:
+            content = json.loads(content)
+            if len(content)>1:
+                raise ValueError("Your query returned more than one result please check your accession")
+            else:
+                content = content[0]
 
-        content = response.content.decode().strip()
-        content = json.loads(content)
-        if len(content)>1:
-            raise ValueError("Your query returned more than one result please check your accession")
-        return content[0]
+        return content
 
     def process_uniprot(self):
 
@@ -58,9 +59,11 @@ class UniProt:
         self.sequence = self.json["sequence"]["sequence"]
         self.organism = {"name": self.json["organism"]['names'],
                          "taxid": self.json["organism"]["taxonomy"]}
-        self.secondary_accessions=[self.json["secondaryAccession"]]
+        if "secondaryAccession" in self.json["protein"].keys():
+            self.secondary_accessions=[self.json["secondaryAccession"]]
         self.name = self.json["protein"]['recommendedName']["fullName"]['value']
-        self.alternative_names=self.json["protein"]['alternativeName']
+        if "alternativeNames" in self.json["protein"].keys():
+            self.alternative_names=self.json["protein"]['alternativeName']
         self.gene=self.json['gene']
         self.feature_types=[feat['type'] for feat in self.json["features"]]
         self.comment_types=set([feat["type"] for feat in self.json['comments']])
@@ -126,20 +129,20 @@ class UniProt:
 
 
     def consolidate_references(self):
-        if self.isoforms is not None or len(self.isoforms) > 0:
+        if self.isoforms.isoforms is not None:
             for isoform in self.isoforms.isoforms:
                 for refs in isoform["pubmed_id"]:
                     self.references.append({"type":"Pubmed", "id":isoform["pubmed_id"]})
 
-        if self.mutagenesis is not None or self.mutagenesis.mutations.shape[0] > 0:
+        if self.mutagenesis.mutations is not None:
             for ref in self.mutagenesis.mutations["pubmed_id"].tolist():
                 self.references.extend(ref)
 
-        if self.interactions is not None or self.interactions.shape[0] > 0:
+        if self.interactions.interactions is not None:
             if self.interactions.intact_results is not None:
                 self.references.extend(self.interactions.intact_results["pubmed_id"].tolist())
 
-        if self.variation is not None or self.variation.shape[0] > 0:
+        if self.variation is not None and "evidences" in self.variation.columns:
             var_refs=self.variation["evidences"].dropna().tolist()
             for ref_list in var_refs:
                 for ref in ref_list:
@@ -162,14 +165,16 @@ class Interactions:
         self.interactions = None
         self.uniprot_id = uniprot.uniprot_id
         self.gather()
-        if search_intact:
+        if search_intact and self.interactions is not None:
             self.intact_results=self.intact_search(**kwargs)
 
     def gather(self):
         response = requests.get(urls["interactions"].format(self.uniprot_id), headers=headers)
-        response.raise_for_status()
-        response = json.loads(response.content.decode())
-        self.interactions = pd.DataFrame(response[0]["interactions"])
+        content=warn_for_status(response)
+        if content is not None:
+            content = json.loads(content)
+            content=pd.DataFrame(content[0]["interactions"])
+        self.interactions = content
         
     #TODO need to move logic out of there for recursion need a __method__
     def intact_search(self, page=0, page_size=1000):
@@ -192,27 +197,32 @@ class Isoforms:
     def gather(self):
         isoforms = []
         isoforms_response = requests.get(urls["isoforms"].format(self.uniprot_id), headers=headers)
-        isoforms_response.raise_for_status()
-        isoforms_response = json.loads(isoforms_response.content.decode())
-        for iso in isoforms_response:
-            accession = iso["accession"]
-            comments = [comment["type"] for comment in iso["comments"]]
-            sequence = iso["sequence"]["sequence"]
-            external_references= iso["dbReferences"]
-            ref_ids=[]
-            references= [ref for ref in iso["references"]]
-            for ref in references:
-                reftypes=ref["citation"]["dbReferences"]
-                for rtype in reftypes:
-                    if rtype["type"] == "Pubmed":
-                        ref_ids.append(type["id"])
-            isoform={"accession":accession,
-                     "comments":comments,
-                     "sequence":sequence,
-                     "pubmed_id":ref_ids,
-                     "external_references":external_references,}
-            isoforms.append(isoform)
-        self.isoforms = isoforms
+        if isoforms_response.status_code!=200:
+            warnings.warn("Did not find any isoforms for {}".format(self.uniprot_id))
+            self.isoforms=None
+        else:
+            isoforms_response = json.loads(isoforms_response.content.decode())
+            for iso in isoforms_response:
+                accession = iso["accession"]
+                comments = [comment["type"] for comment in iso["comments"]]
+                sequence = iso["sequence"]["sequence"]
+                external_references= iso["dbReferences"]
+                ref_ids=[]
+                references= [ref for ref in iso["references"]]
+                for ref in references:
+                    reftypes=ref["citation"]
+                    if "dbReferences" in reftypes.keys():
+                        for rtype in reftypes:
+                            if type(rtype)==dict:
+                                if rtype["type"] == "Pubmed":
+                                    ref_ids.append(type["id"])
+                isoform={"accession":accession,
+                         "comments":comments,
+                         "sequence":sequence,
+                         "pubmed_id":ref_ids,
+                         "external_references":external_references,}
+                isoforms.append(isoform)
+            self.isoforms = isoforms
         return self
 
 class Mutagenesis:
@@ -224,23 +234,28 @@ class Mutagenesis:
     def gather(self):
         mutations = []
         mutations_response = requests.get(urls["mutagenesis"].format(self.uniprot_id), headers=headers)
-        mutations_response.raise_for_status()
-        mutations_response = json.loads(mutations_response.content.decode())[0]["features"]
-        for mutation in mutations_response:
-            type = mutation["type"]
-            alt=mutation["alternativeSequence"]
-            start = mutation["begin"]
-            end = mutation["end"]
-            description = mutation["description"]
-            references=[ref["source"]["id"] for ref in mutation["evidences"] if ref["source"]["name"]=="PubMed"]
-            mut={"type":type,
-                 "description":description,
-                 "start":start,
-                 "end":end,
-                 "alt":alt,
-                 "pubmed_id":references,}
-            mutations.append(mut)
-        self.mutations = pd.DataFrame(mutations)
+        mutations_response = warn_for_status(mutations_response)
+        mutations_response = json.loads(mutations_response)
+        if mutations_response is not None and len(mutations_response)>0:
+            mutations_response=mutations_response[0]["features"]
+            for mutation in mutations_response:
+                type = mutation["type"]
+                alt=mutation["alternativeSequence"]
+                start = mutation["begin"]
+                end = mutation["end"]
+                description = mutation["description"]
+                references=[ref["source"]["id"] for ref in mutation["evidences"] if ref["source"]["name"]=="PubMed"]
+                mut={"type":type,
+                     "description":description,
+                     "start":start,
+                     "end":end,
+                     "alt":alt,
+                     "pubmed_id":references,}
+                mutations.append(mut)
+            mutations=pd.DataFrame(mutations)
+        else:
+            mutations=None
+        self.mutations = mutations
         return self
 
 
