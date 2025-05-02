@@ -43,6 +43,7 @@ class ContainerRunner:
 
         return self
 
+    #TODO if self.slurm then run sinfo rather than self.run.poll()
     def check_status(self):
         poll = self.run.poll()
         if poll is None:
@@ -73,3 +74,10 @@ class ContainerRunner:
 
         if len(to_ret) > 0:
             return to_ret
+        else:
+            return None
+
+    #TODO add specific job params with reasonable defaults
+    def submit_slurm(self, **job_params):
+        self.slurm=True
+        pass

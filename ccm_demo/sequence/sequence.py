@@ -8,13 +8,14 @@ from Bio import Seq, SeqIO
 
 from ccm_demo.sequence.utils import *
 
+#TODO blast using api
 class Sequence:
     def __init__(self, name, sequence):
         self.name = name
         self.sequence = sequence
         self.device="cuda" if torch.cuda.is_available() else "cpu"
 
-
+    #TODO need to be able to also do a DNA/RNA embedding
     def embeddings(self, model="esmc_300m", normalize=False):
         if model == "esmc_300m" or model == "esmc_g00m":
             embeddings=esm3_embeddings(sequence=self.sequence, model=model,
@@ -70,4 +71,8 @@ class Sequence:
 class SequenceList(Sequence):
     def __init__(self):
         super().__init__()
+        pass
+
+    #MSA within the list
+    def msa(self):
         pass
