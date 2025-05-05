@@ -58,6 +58,10 @@ class Sequence:
             for item in items:
                 os.remove(os.path.join(destination, item))
 
+    def blast(self, program, database, threshold=10, hitlist_size=50):
+        search=blast_search(program, database, self.sequence, threshold, hitlist_size)
+        results=parse_blast_search(search)
+        return results
 
     def write(self, fpath):
         seq=SeqIO.SeqRecord(Seq.Seq(self.sequence), id=self.name, description="")

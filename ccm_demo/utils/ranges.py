@@ -28,7 +28,19 @@ class RangesList(list):
     def __init__(self, **kwargs):
         pass
 
+    def find_overlaps(self, other, max_gap=0):
+        pass
+
+    def to_dataframe(self):
+        pass
+
 
 class RangesDict(defaultdict):
     def __init__(self, **kwargs):
+        pass
+
+    def find_overlaps(self, other, max_gap=0):
+        pass
+
+    def to_dataframe(self):
         pass

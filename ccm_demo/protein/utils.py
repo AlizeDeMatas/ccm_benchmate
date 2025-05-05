@@ -31,7 +31,8 @@ def search_intact(ebi_id, page=0, page_size=100):
                        "annotations": "\n".join(item for item in ints["allAnnotations"]),
                        "is_negative": ints["negative"], "affected_by_mutation": ints["affectedByMutation"],
                        "pubmed_id": ints["publicationPubmedIdentifier"], "score": ints["intactMiscore"], }
-    interactions.append(interaction)
+
+        interactions.append(interaction)
     if intact_response["last"]:
         last_page=True
     else:
