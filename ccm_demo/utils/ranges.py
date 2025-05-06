@@ -30,6 +30,12 @@ class Range:
     def overlaps(self, other):
        return self._range.overlaps(other._range)
 
+    def coverage(self):
+        pass
+
+    def distance(self, other):
+        pass
+
 
     def __str__(self):
         return str(f"{self.start} to {self.end}")
@@ -46,6 +52,14 @@ class Range:
 
         return self
 
+    def __sub__(self, other):
+        """
+        this should remove the section of the ranges if the section is in the middle of the range it should
+        return the 2 ranges where the middle is blank.
+        :param other:
+        :return:
+        """
+        pass
 
     def __eq__(self, other):
         if self.start == other.start and self.end == other.end:
@@ -83,6 +97,15 @@ class RangesList(list):
         pairs=self.find_overlap_pairs(other, max_gap=max_gap)
         overlaps=[(self.ranges[pair[0]], other.ranges[pair[1]]) for pair in pairs]
         return overlaps
+
+    def nearest(self, other):
+        pass
+
+    def precedence(self, other):
+        pass
+
+    def follow(self, other):
+        pass
 
     def __reduce__(self):
         """
