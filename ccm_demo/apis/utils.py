@@ -40,9 +40,3 @@ def search_intact(ebi_id, page=0, page_size=100):
 
     return interactions, last_page
 
-def warn_for_status(response):
-    if response.status_code != 200:
-        warnings.warn("Response status code: {}".format(response.status_code))
-        return None
-    else:
-        return response.content.decode().strip()

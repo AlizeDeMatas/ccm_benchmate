@@ -19,6 +19,7 @@ from colpali_engine.models import ColPali, ColPaliProcessor
 
 
 from ccm_demo.literature.configs import *
+from ccm_demo.utils.general_utils import *
 
 def interpret_image(image, prompt, processor, model, max_tokens, device):
     prompt[1]["content"][0]["image"] = image
@@ -221,43 +222,48 @@ def search_openalex(id_type, paper_id, fields=None, cited_by=False, references=F
 
     url = base_url.format(paper_id)
     response = requests.get(url)
-    response.raise_for_status()
-    response = json.loads(response.content.decode().strip())
-    new_response = filter_openalex_response(response, fields)
+    try:
+        response = json.loads(response.content.decode().strip())
+        new_response = filter_openalex_response(response, fields)
 
-    if cited_by:
-        if "cited_by_api_url" in new_response.keys():
-            time.sleep(1)
-            cited_by=requests.get(new_response["cited_by_api_url"])
-            cited_by.raise_for_status()
-            cited_by = json.loads(cited_by.content.decode().strip())
-            cited_by = cited_by["results"]
-            cited_by_list = []
-            for cited in cited_by:
-                cited_by_list.append(filter_openalex_response(cited, fields))
-            new_response["cited_by"] = cited_by_list
+        if cited_by:
+            if "cited_by_api_url" in new_response.keys():
+                time.sleep(1)
+                cited_by=requests.get(new_response["cited_by_api_url"])
+                cited_by.raise_for_status()
+                cited_by = json.loads(cited_by.content.decode().strip())
+                cited_by = cited_by["results"]
+                cited_by_list = []
+                for cited in cited_by:
+                    cited_by_list.append(filter_openalex_response(cited, fields))
+                new_response["cited_by"] = cited_by_list
 
-    if references:
-        new_response["reference_details"]=[]
-        count=0
-        while count < 10:
-            for i in range(len("referenced_works")):
-                ref_id=new_response["referenced_works"][i].split("/").pop()
-                url=base_url.format(ref_id)
-                ref=requests.get(url)
-                ref.raise_for_status()
-                ref=json.loads(ref.content.decode().strip())
-                count=count+1
-                ref=filter_openalex_response(ref, fields)
-                new_response["reference_details"].append(ref)
-        else:
-            time.sleep(1)
+        if references:
+            new_response["reference_details"]=[]
+            count=0
+            counter= len(new_response["referenced_works"]) if len(new_response["referenced_works"])<10 else 10
+            while count < counter:
+                for i in range(len(new_response["referenced_works"])):
+                    ref_id=new_response["referenced_works"][i].split("/").pop()
+                    url=base_url.format(ref_id)
+                    ref=requests.get(url)
+                    ref.raise_for_status()
+                    ref=json.loads(ref.content.decode().strip())
+                    count=count+1
+                    ref=filter_openalex_response(ref, fields)
+                    new_response["reference_details"].append(ref)
+            else:
+                time.sleep(1)
+    except:
+        warnings.warn("Could not find a paper with the given ID.")
+        new_response=None
 
-    if related_works:
+    if related_works and new_response is not None:
         new_response["related_works_details"]=[]
         count=0
-        while count < 10:
-            for i in range(len("related_works")):
+        counter = len(new_response["related_works"]) if len(new_response["related_works"]) < 10 else 10
+        while count < counter:
+            for i in range(len(new_response["related_works"])):
                 ref_id=new_response["related_works"][i].split("/").pop()
                 url=base_url.format(ref_id)
                 ref=requests.get(url)

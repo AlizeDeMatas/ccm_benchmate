@@ -2,8 +2,6 @@ import os.path
 import warnings
 
 from bs4 import BeautifulSoup as bs
-import requests
-import tarfile
 
 from ccm_demo.literature.utils import *
 
@@ -60,7 +58,9 @@ class LitSearch:
 
 
 class Paper:
-    def __init__(self, paper_id, id_type="pubmed", filepath=None, citations=False, references=False, related_works=False):
+    def __init__(self, paper_id, id_type="pubmed", filepath=None, citations=False,
+                 references=False, related_works=False):
+        self.paper_id = paper_id
         self.table_interpretation = None
         self.figure_interpretation = None
         self.tables = None
@@ -73,18 +73,23 @@ class Paper:
             self.id=paper_id
             self.paper_info=search_openalex(id_type=self.id_type, paper_id=self.id, cited_by=citations,
                                             references=references, related_works=related_works)
-            if "best_oa_location" in self.paper_info.keys():
-                if self.paper_info["best_oa_location"]["pdf_url"] is not None:
+            if self.paper_info is None:
+                raise NoPapersError("Could not find a paper with id {}".format(self.id))
+
+            if "best_oa_location" in self.paper_info.keys() and self.paper_info["best_oa_location"] is not None:
+                link=self.paper_info["best_oa_location"]["pdf_url"]
+                if link is not None and link.endswith(".pdf"):
                     self.download_link=self.paper_info["best_oa_location"]["pdf_url"]
                 else:
                     warnings.warn("Did not find a direct pdf download link")
+                    self.download_link=None
             else:
                 warnings.warn("There is no place to download the paper, this paper might not be open access")
+                self.download_link=None
 
-        self.abstract=None
+        self.abstract=self.get_abstract()
 
     def get_abstract(self):
-
         abstract_text=None
         if self.id_type =="pubmed":
             response=requests.get("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id={}".format(self.paper_id))
@@ -102,8 +107,7 @@ class Paper:
         else:
             raise NotImplementedError("source must be pubmed or arxiv other sources are not implemented")
 
-        self.abstract=abstract_text
-        return self
+        return abstract_text
 
     def download(self, destination):
         download = requests.get(self.download_link, stream=True)
@@ -121,6 +125,9 @@ class Paper:
         self.figure_interpretation=figure_interpretation
         self.table_interpretation=table_interpretation
         return self
+
+    def __str__(self):
+        return self.paper_info["title"]
 
 
 

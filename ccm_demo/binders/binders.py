@@ -19,7 +19,7 @@ class MoleculeBinder:
     def __init__(self, pdb):
         """
         the structure needed for the molecule binder
-        :param protein: a Protein object, we need a structure, if the protein does not have a pdb file we can
+        :param apis: a Protein object, we need a structure, if the apis does not have a pdb file we can
         either use the structure module to predict one or download from pdb doesn't matter
         """
         self.pdb=pdb
@@ -72,7 +72,7 @@ class MoleculeBinder:
         get_coord_cuboid("example.pdb", amino_acids=["ALA", "GLY"], use_alpha_carbon = True)
         """
 
-        structure = parser.get_structure("protein", pdb_file)
+        structure = parser.get_structure("apis", pdb_file)
         coord = []
 
         for model in structure:

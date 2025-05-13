@@ -1,8 +1,6 @@
 
 from sqlalchemy import (
-    Column, ForeignKey, Integer, String, DateTime,
-    Date, Text, Float, Time, types, Computed, Index, Boolean,
-    JSON, BLOB
+    Column, ForeignKey, Integer, String, JSON
 )
 from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.orm import declarative_base
@@ -23,8 +21,6 @@ class Chrom(Base):
     __tablename__ = 'chrom'
     chrom_id = Column(Integer, autoincrement=True, primary_key=True)
     chrom=Column(String, nullable=True)
-    start=Column(Integer, nullable=True)
-    end=Column(Integer, nullable=True)
     genome_id=Column(Integer, ForeignKey('genome.genome_id'), nullable=True)
 
 class Gene(Base):
@@ -53,7 +49,7 @@ class Exon(Base):
     start = Column(Integer, nullable=False)
     end = Column(Integer, nullable=False)
     exon_rank = Column(Integer, nullable=False)
-    transcript=Column(Integer, ForeignKey('transcript.transcript_id', nullable=True)
+    transcript=Column(Integer, ForeignKey('transcript.transcript_id', nullable=True))
 
 class ThreeUTR(Base):
     __tablename__ = 'three_utr'

@@ -11,6 +11,13 @@ from ccm_demo.containers.alphafold3.command import *
 
 class Structure:
     def __init__(self, pdb=None, sequence=None, predict=True, model="AF3"):
+        """
+
+        :param pdb:
+        :param sequence:
+        :param predict:
+        :param model:
+        """
         self.pdb = pdb
         if pdb is not None:
             self.structure = io.load_structure(self.pdb)
@@ -65,7 +72,13 @@ class Structure:
         self.seq_3di = sequences
         return self
 
-    #TODO replace with biotite
+    def get_sequence(self):
+        if hasattr(self, "structure"):
+            sequence = to_sequence(self.structure)
+            self.sequence = sequence
+            return sequence
+        else:
+            raise ValueError("No structure loaded")
     def align(self, other, destination):
         if self.pdb is None or other.pdb is None:
             raise ValueError("Cannot align structures without a PDB")
@@ -81,11 +94,15 @@ class Structure:
         html_report = os.path.abspath(destination + "results.html")
         return aligned_pdb, rotation_file, html_report
 
+    def tm_score(self, other):
+        pass
+
+
     #TODO implement AF2, and omegafold
     def predict(self, output_path, container, inference=True, pipeline=False, model="AF3"):
         if model != "AF3":
             raise NotImplementedError("We can only predict structures with AF3")
-        generate_json(self.name, "protein", self.sequence, stoichiometry=1, fpath=output_path)
+        generate_json(self.name, "apis", self.sequence, stoichiometry=1, fpath=output_path)
         os.makedirs(os.path.abspath(os.path.join(output_path, "af3_prediction")), exist_ok=True)
         command_dict["run_command"].format(pipeline, inference)
         command_dict["bind_mounts"][1] = os.path.abspath(output_path)

@@ -63,10 +63,10 @@ class StringDb:
     def __str__(self):
         return self.annotation
 
-    #TODO add another protein and its network to this
+    #TODO add another apis and its network to this
     def __add__(self, other, include_interactions=True):
         pass
 
-    #TODO remote protein from this
+    #TODO remote apis from this
     def __sub__(self, other, include_interactions=True):
         pass
