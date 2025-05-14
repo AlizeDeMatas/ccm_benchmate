@@ -3,10 +3,11 @@ from ccm_demo.utils.ranges import Range, RangesList
 
 
 class GenomicRange:
-    def __init__(self, chrom, start, end, strand):
+    def __init__(self, chrom, start, end, strand, annotation=None):
         self.chrom = chrom
         self.strand = strand
         self.ranges = Range(start, end)
+        self.annotation = annotation
 
     def shift(self, amount):
         self.ranges=self.ranges.shift(amount)
