@@ -1,14 +1,10 @@
 import os
-import shutil
 import subprocess
-import warnings
 
-import torch
 from Bio import Seq, SeqIO
 
 from ccm_demo.sequence.utils import *
 
-#TODO blast using api
 class Sequence:
     def __init__(self, name, sequence):
         self.name = name
@@ -27,7 +23,7 @@ class Sequence:
 
     def mutate(self, position, to, new_name=None):
         """
-        position is 0 based
+        position is 0 based, create a new instance of the sequence with the mutation
         """
         new_sequence = list(self.sequence)
         if position > len(new_sequence)-1:
@@ -40,6 +36,14 @@ class Sequence:
         return self
 
     def msa(self, database, destination, output_name="msa.a3m", cleanup=True):
+        """
+        generate a multiple sequence alignment using mmseqs2 this assumes that you already have a database processed.
+        :param database: the database that is ready to go
+        :param destination: where to save the results.
+        :param output_name: name of the a3m file
+        :param cleanup: remove temporary files
+        :return: path of the output file
+        """
         self.write(os.path.join(destination, "query.fasta"))
         script=os.path.join(__file__.replace("sequence.py", ""), "../scripts/run_mmseqs.sh")
         #TODO better packaging
@@ -57,8 +61,17 @@ class Sequence:
                    "query.tab", "query_h", "query_h.dbtype", "query_h.index", "align", "align.dbtype","align.index"]
             for item in items:
                 os.remove(os.path.join(destination, item))
+        return os.path.join(destination, output_name)
 
     def blast(self, program, database, threshold=10, hitlist_size=50):
+        """
+        using the ncbi blast api run blast, I am not sure if localblast is needed
+        :param program: which blast program to use
+        :param database: which database to use
+        :param threshold: e value threshold
+        :param hitlist_size: how many hits to return
+        :return:
+        """
         search=blast_search(program, database, self.sequence, threshold, hitlist_size)
         results=parse_blast_search(search)
         return results

@@ -5,6 +5,13 @@ from ccm_demo.utils.general_utils import *
 
 class UniProt:
     def __init__(self, uniprot_id, search_intact=True, consolidate_refs=True, **kwargs):
+        """
+        constructor for the UniProt class, which is used to gather data from the UniProt API. and process it in a readable format.
+        :param uniprot_id:
+        :param search_intact:
+        :param consolidate_refs:
+        :param kwargs:
+        """
         self.description = None
         self.xrefs = None
         self.xref_types = None
@@ -24,10 +31,10 @@ class UniProt:
             self.process_uniprot()
             self.description=self.get_description()
             if "citationCrossReferences" in self.json:
-                self.references = self.extract_references()
+                self.references = self._extract_references()
             else:
                 self.references = []
-            self.xref_types, self.xrefs= self.get_xrefs()
+            self.xref_types, self.xrefs= self._extract_xrefs()
             self.variation=self.get_variations()
             self.cross_references = self.get_xrefs()
             self.interactions=Interactions(self, search_intact=search_intact, **kwargs)
@@ -38,6 +45,10 @@ class UniProt:
 
 
     def gather(self):
+        """
+        This function gathers data from the UniProt API using the provided uniprot_id.
+        :return: whole json response from the API
+        """
         url = urls["base_response"].format(self.uniprot_id)
         response = requests.get(url, headers=headers)
         content=warn_for_status(response, "issues with gathering data")
@@ -51,6 +62,10 @@ class UniProt:
         return content
 
     def process_uniprot(self):
+        """
+        process the json response from the UniProt API and extract relevant information.
+        :return: returns self because it modfies the class instance
+        """
         self.id = self.json["id"]
         self.sequence = self.json["sequence"]["sequence"]
         self.organism = {"name": self.json["organism"]['names'],
@@ -63,10 +78,15 @@ class UniProt:
         self.gene=self.json['gene']
         self.feature_types=set([feat['type'] for feat in self.json["features"]])
         self.comment_types=set([feat["type"] for feat in self.json['comments']])
-        return None
+        return self
 
 
     def get_features(self, feature_types=None):
+        """
+        filter already extracted features by type
+        :param feature_types: type of the feature to filter by
+        :return: the features
+        """
         if feature_types is not None:
             features = [feat for feat in self.json["features"] if feat["type"] in feature_types]
         else:
@@ -74,6 +94,11 @@ class UniProt:
         return features
 
     def get_comments(self, types=None):
+        """
+        get already extracted comments from the json response
+        :param types: comment types to filter by
+        :return: comments
+        """
         if types is not None:
             if type(types) == str:
                 types = [types]
@@ -82,7 +107,11 @@ class UniProt:
             comments = [feat for feat in self.json["comments"]]
         return comments
 
-    def extract_references(self):
+    def _extract_references(self):
+        """
+        internal function to extract references from the json response
+        :return: references
+        """
         refs = []
         for reference in self.json["references"]:
             for db in reference["dbReferences"]:
@@ -91,13 +120,22 @@ class UniProt:
         references = refs
         return references
 
-    def get_xrefs(self):
+    def _extract_xrefs(self):
+        """
+        internal function to extract xrefs from the json response
+        :return: xref types and xrefs
+        """
         xrefs = self.json["dbReferences"]
         xref_types = list(set([item["type"] for item in xrefs]))
         xrefs = pd.DataFrame(xrefs)
         return xref_types, xrefs
 
     def get_description(self):
+        """
+        concanate the comments from the json response into a single string this can be used in nlp tasks or comparing
+        uniprot instances
+        :return:
+        """
         desc = []
         for comment in self.json["comments"]:
             if "texts" in comment.keys():
@@ -107,6 +145,10 @@ class UniProt:
         return description
 
     def get_variations(self):
+        """
+        query the uniprot API for variations
+        :return: pandas DataFrame with the variations
+        """
         variants=requests.get(urls["variation"].format(self.uniprot_id))
         warn_for_status(variants, "issues with getting variation")
         variants=json.loads(variants.content.decode())[0]
@@ -117,6 +159,11 @@ class UniProt:
 
 
     def consolidate_references(self):
+        """
+        pul all references from the isoforms, mutagenesis, interactions and variations into a single list this is useful
+        for literature mining and other tasks
+        :return: references
+        """
         if self.isoforms.isoforms is not None:
             for isoform in self.isoforms.isoforms:
                 for refs in isoform["pubmed_id"]:
@@ -149,6 +196,12 @@ class UniProt:
 
 class Interactions:
     def __init__(self, uniprot, search_intact=True, **kwargs):
+        """
+        constructor for the Interactions class, which is used to gather interaction data from the UniProt API as well as Intact database.
+        :param uniprot:
+        :param search_intact:
+        :param kwargs:
+        """
         self.intact_results = None
         self.interactions = None
         self.uniprot_id = uniprot.uniprot_id
@@ -215,6 +268,11 @@ class Isoforms:
 
 class Mutagenesis:
     def __init__(self, uniprot):
+        """
+        query the uniprot API for mutagenesis data this is different than variations, these are not variations that are
+        seen in the wild but from experimental data
+        :param uniprot: uniprot class
+        """
         self.uniprot_id = uniprot.uniprot_id
         self.mutations = self.gather()
 

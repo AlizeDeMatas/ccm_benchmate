@@ -61,10 +61,10 @@ class Rfam:
 
 
 
-# this might not be that useful either but it's there
+#TODO this needs to be refactored so that id is not passed in the constructor or conver the whole thing to dataclasses
 class RNAcentral:
-    def __init__(self, id, rna_central_api_url: str = "https://rnacentral.org/api/v1"):
-        self.rna_central_api_url = rna_central_api_url
+    def __init__(self, id: str):
+        self.rna_central_api_url = "https://rnacentral.org/api/v1"
         self.headers = {"Content-Type": "application/json"}
         self.response=self.get_information(id)
         xrefs_page=self.response["xrefs"]
@@ -96,11 +96,13 @@ class RNAcentral:
             raise Exception(f"Error: {response.status_code} - {response.text}")
 
 
-    def get_xrefs(self, url):
+    def get_xrefs(self):
         """
-        :param id:
-        :return:
+        Get cross-references for a specific RNAcentral entry.
+        :return: a dataframe containing cross-references information the modifications section will be a dict not just a string
+        or a numeric type
         """
+        url=f"{self.rna_central_api_url}/{self.id}/xrefs/"
         response = requests.get(url, headers=self.headers)
         if response.status_code == 200:
             response = response.json()
@@ -122,7 +124,7 @@ class RNAcentral:
 
     def get_publications(self):
         """
-        :return:
+        :return: a dataframe containing publication information
         """
         url=self.response["publications"]
         response=requests.get(url, headers=self.headers)

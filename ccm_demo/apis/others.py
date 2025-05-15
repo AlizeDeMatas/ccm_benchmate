@@ -3,7 +3,7 @@
 import pandas as pd
 import requests
 
-
+#TODO: add docstrings to all classes and methods not all methods are implemented yet.
 class GTEX:
     def __init__(self):
         self.base_url = "https://gtexportal.org/api/v2/"
@@ -123,12 +123,23 @@ class GTEX:
 
 class BioGrid:
     def __init__(self, access_key):
+        """
+        Initialize the BioGrid class with the provided access key.
+        :param access_key: you can get one from https://webservice.thebiogrid.org/
+        """
         self.access_key = access_key
         self.evidence_types = self._get_evidence_types()
         self.organisms=self._get_organisms()
         self.id_types=self._get_supported_identifiers()
 
     def interactions(self, gene_list, id_types=None, evidence_types=None):
+        """
+        Get the interactions for the given gene list.
+        :param gene_list: list of genes
+        :param id_types: the type of the identifier, e.g. "entrez", "uniprot", "ensembl"
+        :param evidence_types: see self.evidence_types
+        :return: a pandas dataframe with the interactions and kinds of evidences that support them
+        """
         params= {
             "geneList": "|".join(gene_list),
             "additionalIdentifierTypes": "|".join(id_types),

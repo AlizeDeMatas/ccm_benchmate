@@ -11,7 +11,15 @@ from ccm_demo.utils.genomicranges import GenomicRange
 # this is also the whole point of genomic ranges classes, that we can do these calculations locally, I do not think
 # user will be using more than a few genomes at any given time so there is no reason for api calls
 class Ensembl:
-    def __init__(self, dataset="hsapiens_gene_ensembl"):
+    """
+    Ensembl API wrapper for the Ensembl REST API.
+    """
+    def __init__(self):
+        """
+        Initialize the Ensembl API wrapper. there are some basic variables that are set there is nothing here for the user to
+        set. The base url is the ensembl rest api url, the dataset is the dataset that will be used for the queries, and the
+        headers are the headers that will be used for the queries.
+        """
         self.base_url = "https://rest.ensembl.org"
         self.dataset = "hsapiens_gene_ensembl"
         self.headers={ "Content-Type" : "application/json"}
@@ -25,7 +33,16 @@ class Ensembl:
                           'refseq', 'shift_3prime', 'shift_genomic', 'transcript_version',
                           'tsl', 'uniprot', 'variant_class', 'vcf_string', 'xref_refseq']
 
-    def variation(self,  id, method=None, species=None, pubtype=None):
+    def variation(self,  id, method=None, species="human", pubtype=None):
+        """
+        Get variation information from the Ensembl REST API.
+        :param id:
+        :param method: search method, default is None which means we will get information otherwise you can search for
+        publications (pmid and pmcid) or translation which converts the notations to other notations
+        :param species: species to search for, default is human
+        :param pubtype:
+        :return:
+        """
         methods=["translate", "publication"]
         if method not in methods and method is not None:
             raise NotImplementedError("Method {} not implemented".format(method))
@@ -47,7 +64,15 @@ class Ensembl:
         return decoded
 
 
-    def vep(self, species, variant, tools):
+    def vep(self, species, variant, tools, check_exisits=True):
+        """"
+        Get variant effect prediction from the Ensembl REST API.
+        :param species: species to search for
+        :param variant: variant to search for, must be a Variant object
+        :param tools: tools to use for the prediction, default is None which means we will just return basic information
+        :param check_exisits: check population frequencies from gnomad and 1kg
+        :return: variant effect prediction a detailed dict
+        """
         ext= f"/vep/{species}/id/{variant.chrom}:{variant.start}-{variant.end}/{variant.alt}"
         if tools is not None:
             for tool in tools:
@@ -55,6 +80,8 @@ class Ensembl:
                     warnings.warn(f"Tool {tool} not available in VEP api")
                 else:
                     ext = f"{ext};{tool}={1}"
+        if check_exisits:
+            ext = f"{ext};?check_existing=1&af=1&af_1kg=1&af_gnomad=1"
         response = requests.get(f"{self.base_url}{ext}", headers=self.headers)
         response.raise_for_status()
         decoded = json.loads(response.text)
@@ -62,16 +89,32 @@ class Ensembl:
         return pd.DataFrame(decoded)
 
     def phenotype(self, grange, species="human"):
+        """
+        Get phenotype information from the Ensembl REST API that is associated with the genomic range.
+        :param grange: a GenomicRange object
+        :param species: species to search for, default is human
+        :return: a dictionary with the phenotype information
+        """
         if not isinstance(grange, GenomicRange):
             raise ValueError("grange must be a GenomicRange object")
 
-        ext= f"/phenotype/region/species/{grange.chrom}/{grange.start}-{grange.end}"
+        ext= f"/phenotype/region/{species}/{grange.chrom}/{grange.start}-{grange.end}"
         response = requests.get(f"{self.base_url}{ext}", headers=self.headers)
         response.raise_for_status()
         decoded = json.loads(response.text)
         return decoded
 
     def sequence(self, id, trim_end=None, trim_start=None, expand_3=None, expand_5=None, sequence_type="genomic"):
+        """
+        Get sequence information from the Ensembl REST API for a given ensembl id
+        :param id: ensembl id, because the ids also specify the species you do not need to specify the species
+        :param trim_end: trim this many nucleotides from the end
+        :param trim_start: trim this many nucleotides from the start
+        :param expand_3: expand this many nucleotides from the 3' end not compatible with trim_end
+        :param expand_5: expand this many nucleotides from the 5' end not compatible with trim_start
+        :param sequence_type: genomics, cds, protein, cdna
+        :return:
+        """
         types=["genomic", "cds", "protein", "cdna"]
         if trim_end is not None and expand_3 is not None:
             raise ValueError("trim_end and trim_start are mutually exclusive")
@@ -91,6 +134,11 @@ class Ensembl:
 
 
     def xrefs(self, id):
+        """
+        Get cross references from the Ensembl REST API for a given ensembl id
+        :param id: ensembl id, because the ids also specify the species you do not need to specify the species
+        :return: a dict of cross references these can be used to get the ids from other databases from other apis
+        """
         ext = f"/xrefs/id/?{id}"
         response = requests.get(f"{self.base_url}{ext}", headers=self.headers)
         response.raise_for_status()
@@ -98,6 +146,14 @@ class Ensembl:
         return decoded
 
     def mapping(self, id, start, end, type="cDNA"):
+        """
+        Get mapping information from the Ensembl REST API for a given ensembl id, convert between cDNA, CDS and protein
+        :param id: ensembl id, because the ids also specify the species you do not need to specify the species
+        :param start: start position of the range
+        :param end: end position of the range
+        :param type: type of mapping, cDNA, CDS or protein
+        :return: dict of mapping information, this not really compatible with genomicranges that's why the inputs are different
+        """
         if type == "cDNA":
             ext = f"/mapping/cdns/{id/start}..{end}"
         elif type == "CDS":
@@ -113,6 +169,14 @@ class Ensembl:
         return decoded
 
     def overlap(self, grange, features=None, species="human"):
+        """
+        Get overlap information from the Ensembl REST API for a given genomic range, this can be used to get the features that are
+        within a region of interest. The features can be specified as a list of strings, if no features are specified all features will be returned.
+        :param grange: a GenomicRange object
+        :param features: features to get, default is None which means all features will be returned
+        :param species: species to search for, default is human
+        :return: a dict of overlap information, this is a dict of dicts where the keys are the features and the values are the genomic features
+        """
         available_features= ["band", "gene", "transcript", "cds", "exon", "repeat", "simple", "misc", "variation", "somatic_variation",
                        "structural_variation", "somatic_structural_variation", "constrained", "regulatory", "motif", "mane"]
         if features is None:
@@ -129,7 +193,7 @@ class Ensembl:
         if not isinstance(grange, GenomicRange):
             raise ValueError("grange must be a GenomicRange object")
 
-        initial_ext = f"/overlap/region/species/{grange.chrom}/{grange.start}-{grange.end}"
+        initial_ext = f"/overlap/region/{species}/{grange.chrom}/{grange.start}-{grange.end}"
         for feature in features:
             ext = f"{initial_ext};feature={feature}"
 
@@ -139,6 +203,11 @@ class Ensembl:
         return decoded
 
     def info(self):
+        """
+        Get information from the Ensembl REST API, this returns general information about the api,
+        used to get an idea of what is available in the api.
+        :return: divisions, species and consequences that are available in the api
+        """
         # this is going to ge, species, consequence types
         divisions = "https://rest.ensembl.org/info/divisions?"
         species = "https://rest.ensembl.org/info/species"

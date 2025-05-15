@@ -4,5 +4,10 @@
 *.json
 *.sif
 *.idea
-*.__pycache__
+*__pycache__
 ccm_demo/sequence/databases
+notebooks
+*.egg-info
+*.egg
+*.whl
+projects

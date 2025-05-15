@@ -58,7 +58,7 @@ class Range:
         """
         Splits the range into n equal parts
         :param n: number of parts to split the range into
-        :return: list of Range objects
+        :return: a RangesList of the split ranges
         """
         assert(isinstance(n, int))
         assert(n > 0)
@@ -148,8 +148,6 @@ class RangesList:
         min_pos = min(r.start for r in self.items)
         max_pos = max(r.end for r in self.items)
         length = max_pos - min_pos + 1
-
-
         coverage = [0] * length
 
         # Count coverage for each range

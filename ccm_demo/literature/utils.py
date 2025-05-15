@@ -22,6 +22,17 @@ from ccm_demo.literature.configs import *
 from ccm_demo.utils.general_utils import *
 
 def interpret_image(image, prompt, processor, model, max_tokens, device):
+    """
+    This function takes an image and a prompt, and generates a text description of the image using a vision-language model.
+    the default model is Qwen2_5_VL.
+    :param image: PIL image, no need to save to disk
+    :param prompt: image prompt, see configs for default
+    :param processor: processor class from huggingface
+    :param model: model class from huggingface
+    :param max_tokens: number of tokens to generate, more tokens = more text but does not mean more information
+    :param device: gpu or cpu, if cpu keep it short
+    :return: string
+    """
     prompt[1]["content"][0]["image"] = image
     text = processor.apply_chat_template(prompt, tokenize=False, add_generation_prompt=True)
     # this is here for compatibility I will not be processing videos
@@ -46,8 +57,22 @@ def interpret_image(image, prompt, processor, model, max_tokens, device):
 def process_pdf(pdf, lp_model=paper_processing_config["lp_model"], interpret_figures=True, interpret_tables=True,
                 vl_model=paper_processing_config["vl_model"], zoomx=2, device="cuda", max_tokens=400, figure_prompt=figure_messages,
                 table_prompt=table_message):
-
-
+    """
+    This function takes a pdf file and processes it using layout parser and pytesseract to extract text, figures and tables.
+    figures and tables are PIL instances, text is a string. the text is then chunked into smaller pieces using the chunking strategy
+    the default is semantic chunking. This is preprocessing for the a RAG application
+    :param pdf:
+    :param lp_model:
+    :param interpret_figures: whether to interpret figures or not using vision language model
+    :param interpret_tables: whether to interpret tables or not using vision language model
+    :param vl_model:
+    :param zoomx: zoom factor for the pdf, higher means better quality but slower processing important for OCR
+    :param device: better be GPU
+    :param max_tokens:
+    :param figure_prompt: see configs for default it makes a difference
+    :param table_prompt:
+    :return:
+    """
     lp_model=lp.Detectron2LayoutModel(lp_model["config"], lp_model["model"],
                              label_map={0: "Text", 1: "Title", 2: "List", 3: "Table", 4: "Figure"},
                              extra_config=["MODEL.ROI_HEADS.SCORE_THRESH_TEST", 0.8],
@@ -104,7 +129,6 @@ def process_pdf(pdf, lp_model=paper_processing_config["lp_model"], interpret_fig
     return article_text, figures, tables, figure_interpretation, table_interpretation
 
 
-#TODO image embedding model, same function for figures and tables
 def embed_images(images, model_dir=paper_processing_config["image_embedding_model"], device="cuda:0"):
 
     model = ColPali.from_pretrained(
@@ -160,7 +184,8 @@ def embed_text(text, splitting_strategy="semantic",
         embeddings.append(ems)
     return embeddings
 
-
+# At this point this is almost legacy because pmc ids are not a reliable source of retrieval. When we can find them
+# they come in tar.gz format so here we are.
 def extract_pdfs_from_tar(file, destination):
     """Lists the contents of a .tar.gz file.
     Args:
@@ -196,6 +221,7 @@ def extract_pdfs_from_tar(file, destination):
         print(f"Error: Could not open or read {file}. It might be corrupted or not a valid tar.gz file.")
         return None
 
+#This is not for the end user, this is for the developers
 def filter_openalex_response(response, fields=None):
     if fields is None:
         fields=["id", "doi", "title", "topics", "keywords", "concepts",
@@ -208,7 +234,8 @@ def filter_openalex_response(response, fields=None):
     return new_response
 
 
-#TODO should I just this thing and ignore semantic scholar?
+#currenlt using this because semantich scholar has not given me an api key, I emailed them multiple times
+# openalex does not have abstracts but we already have functions to get them from arxiv and pubmed
 def search_openalex(id_type, paper_id, fields=None, cited_by=False, references=False, related_works=False):
     base_url = "https://api.openalex.org/works/{}"
     if id_type == "doi":
@@ -277,7 +304,7 @@ def search_openalex(id_type, paper_id, fields=None, cited_by=False, references=F
 
     return new_response
 
-
+# its here, not sure if I will use it
 def search_semantic_scholar(paper_id, id_type, api_key=None, fields=None):
     base_url="https://api.semanticscholar.org/graph/v1/paper/{}?fields={}"
     if id_type == "doi":

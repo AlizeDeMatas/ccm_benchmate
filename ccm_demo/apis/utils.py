@@ -40,3 +40,5 @@ def search_intact(ebi_id, page=0, page_size=100):
 
     return interactions, last_page
 
+
+#TODO find connections between databases and generate a dict of cross referencing ids

@@ -45,7 +45,7 @@ class Genome:
         Gene id or range if range is provided it will return the genes in that range depending on the overlap type
         :param id: Gene id, that used in the gtf file
         :param range: A GenomicRange object
-        :param overlap_type: one of ['any', 'start', 'end', 'within']
+        :param overlap_type: one of ['any', 'start', 'end', 'within'] see rangaes and genomicranges for more info
         :return: a GenomicRangesDict object with the genes in it
         """
         if range is not None and overlap_type not in ['any', 'start', 'end', 'within']:
@@ -84,9 +84,6 @@ class Genome:
 
         gdict=GenomicRangesDict(keys, ranges)
         return gdict
-
-
-
 
     def transcripts(self, gene_id=None, ids=None, range=None, overlap_type=None):
         """
@@ -307,7 +304,8 @@ class Genome:
 
     def __generate_proteome(self, path):
         """
-        same as generate transcriptome but for the proteome
+        same as generate transcriptome but for the proteome it will get translated using standard codon table, no option to
+        specify a different codon table at the moment.
         :return:
         """
         transcripts_table = self.tables['transcript']
@@ -334,7 +332,7 @@ class Genome:
         return path
 
     #TODO need to add genome annotations
-    def __upload_genome(self, gtf_path):
+    def _upload_genome(self, gtf_path):
         chroms, genes, transcripts, exons, cdss, three_utrs, five_utrs, introns = parse_gtf(gtf_path)
         insert_genome(chroms, genes, transcripts, exons, cdss, three_utrs, five_utrs, introns, self.db)
 
