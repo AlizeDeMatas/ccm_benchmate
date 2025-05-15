@@ -1,6 +1,4 @@
-Thank you for the correction. Here is an updated `README.md` for the `ranges` and `genomicranges` modules, accurately reflecting the available classes and their actual functionalities, including `RangesDict` and `GenomicRangesDict`.
 
-```markdown
 # Ranges and GenomicRanges Module
 
 This module provides classes for working with numeric and genomic intervals, supporting operations such as overlap detection, subtraction, and coverage calculation.
