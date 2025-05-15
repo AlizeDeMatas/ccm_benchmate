@@ -4,8 +4,7 @@ import pandas as pd
 import requests
 import json
 
-from ccm_demo.variant.variant import Variant
-from ccm_demo.utils.genomicranges import GenomicRange
+from ccm_demo.ranges.genomicranges import GenomicRange
 
 #I'm skipping the genome stuff because we have the genome class that will get the genome build the db etc.
 # this is also the whole point of genomic ranges classes, that we can do these calculations locally, I do not think
@@ -50,9 +49,9 @@ class Ensembl:
             ext = f"/variation/{species}/{id}"
         else:
             if method == "translate":
-                ext = f"/variant_recorder/{species}/{id}"
-            elif method == "recorder":
-                if pubtype=="pumbed":
+                ext = f"/variant_recoder/{species}/{id}?"
+            elif method == "publication":
+                if pubtype=="pubmed":
                     ext = f"/variation/human/pmid/{id}?"
                 elif pubtype=="pmc":
                     ext = f"/variation/human/pmcid/{id}?"
@@ -227,6 +226,7 @@ class Ensembl:
               "consequences": consequences}
         return data
 
+    #TODO haplotypes?
 
 
 

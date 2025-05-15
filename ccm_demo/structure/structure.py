@@ -3,11 +3,11 @@ import subprocess
 
 import requests
 import torch
-from biotite.structure import io, to_sequence, superimpose, sasa
+from biotite.structure import io, to_sequence, sasa
 from biotite.structure.alphabet import to_3di
 
 from ccm_demo.structure.utils import *
-from ccm_demo.containers.alphafold3.command import *
+
 
 class Structure:
     def __init__(self, pdb=None, sequence=None, predict=True, model="AF3"):

@@ -1,4 +1,4 @@
-from ccm_demo.containers.utils import ContainerRunner
+from ccm_demo.containers import ContainerRunner
 from esm.models.esm3 import ESM3
 from esm.sdk.api import ESMProtein, SamplingConfig
 

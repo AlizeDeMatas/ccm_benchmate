@@ -1,5 +1,5 @@
 
-from ccm_demo.utils.ranges import Range, RangesList
+from ccm_demo.ranges.ranges import Range, RangesList
 
 
 class GenomicRange:

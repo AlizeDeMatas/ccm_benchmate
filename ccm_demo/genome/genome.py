@@ -8,7 +8,7 @@ from Bio import Seq, SeqIO
 import pysam
 
 from ccm_demo.genome.utils import parse_gtf, insert_genome
-from ccm_demo.utils.genomicranges import *
+from ccm_demo.ranges.genomicranges import *
 
 
 class Genome:

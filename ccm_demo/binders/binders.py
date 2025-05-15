@@ -9,8 +9,7 @@ from Bio.PDB import *
 parser = PDBParser(PERMISSIVE=1)
 
 from ccm_demo.binders.utils import *
-from ccm_demo.containers.utils import *
-from ccm_demo.containers.pocket2mol.command import *
+from ccm_demo.container_runner.container_runner import ContainerRunner
 
 from usearch_molecules.dataset import FingerprintedDataset, shape_ecfp4, shape_fcfp4, shape_maccs
 
@@ -100,7 +99,7 @@ class MoleculeBinder:
         :param n:
         :return:
         """
-        generate_yaml(fpath, config=config, numsamples=numsamples, max_steps=max_steps)
+        command_dict=generate_yaml(fpath, config=config, numsamples=numsamples, max_steps=max_steps)
         command_dict["bind_mounts"][0]["local"] = os.path.abspath("../containers/pocket2mol/Pocket2Mol")
         command_dict["bind_mounts"][1]["local"]=os.path.abspath(fpath)
         command_dict["bind_mounts"][2]["local"] = os.path.abspath(outdir)
@@ -138,8 +137,6 @@ class MoleculeBinder:
         data=FingerprintedDataset(library, shape=shape)
         results=data.search(smiles=smiles, n)
         return results
-
-
 
 
     def calculate_properties(self, *args):
