@@ -1,22 +1,23 @@
-import subprocess
 import os
-import uuid
+import subprocess
 import tempfile
-from typing import List, Dict, Optional, Union
 from pathlib import Path
-import time
+from typing import List, Dict, Optional, Union
 
 
 class ContainerError(Exception):
     """Base exception for Container-related errors."""
     pass
 
+
 class ContainerSubprocessError(ContainerError):
     """Exception raised when an Container subprocess fails."""
+
     def __init__(self, returncode: int, stderr: str):
         self.returncode = returncode
         self.stderr = stderr
         super().__init__(f"Container subprocess failed with return code {returncode}: {stderr}")
+
 
 class ContainerSlurmError(ContainerError):
     """Exception raised for SLURM job-related errors."""
@@ -258,4 +259,3 @@ class ContainerRunner:
             return job_info
         except subprocess.SubprocessError as e:
             raise ContainerSlurmError(f"Failed to get SLURM job info: {str(e)}")
-

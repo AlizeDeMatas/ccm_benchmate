@@ -1,4 +1,3 @@
-
 # Container Runner Module
 
 A module for running Singularity/Docker containers with support for local and SLURM cluster execution.
@@ -6,7 +5,8 @@ A module for running Singularity/Docker containers with support for local and SL
 ## Overview
 
 The `ContainerRunner` class provides a unified interface for:
-- Running containers locally 
+
+- Running containers locally
 - Submitting container jobs to SLURM
 - Managing bind mounts and GPU access
 - Monitoring SLURM job status
@@ -16,7 +16,7 @@ The `ContainerRunner` class provides a unified interface for:
 ### Basic Local Container Execution
 
 ```python
-from ccm_demo.container_runner.container_runner import ContainerRunner
+from ccm_benchmate.container_runner.container_runner import ContainerRunner
 
 # Initialize with container path
 runner = ContainerRunner(
@@ -37,7 +37,7 @@ runner.enable_gpu()
 result = runner.run("echo hello")
 ```
 
-### SLURM Cluster Execution 
+### SLURM Cluster Execution
 
 ```python
 # Submit job to SLURM
@@ -46,7 +46,7 @@ job_id = runner.run_slurm(
     job_name="my_job",
     partition="gpu",
     nodes=1,
-    ntasks=1, 
+    ntasks=1,
     time="01:00:00",
     mem="16G",
     gpus=1,
@@ -64,18 +64,21 @@ job_info = runner.get_slurm_job_info(job_id)
 ## Key Features
 
 ### Container Execution
+
 - Support for Singularity and Docker containers
 - Configurable bind mounts
 - GPU support via `--nv` flag
 - Command execution with subprocess handling
 
 ### SLURM Integration
+
 - Submit container jobs to SLURM
 - Monitor job status
 - Retrieve detailed job information
 - Customizable SLURM job parameters
 
 ### Error Handling
+
 - Custom exception classes
 - Subprocess error capturing
 - SLURM job error handling

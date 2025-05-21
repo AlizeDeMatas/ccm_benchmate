@@ -226,6 +226,10 @@ class Ensembl:
               "consequences": consequences}
         return data
 
+    def show_vep_tools(self):
+        return self.vep_tools
+
+
     #TODO haplotypes?
 
 

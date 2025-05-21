@@ -1,10 +1,10 @@
 import json
+
 import requests
 
-#TODO maybe to networkx?
-# also need to remove the name, species and network depth from the constructor
+
 class StringDb:
-    def __init__(self, name, species=9606, network_depth=1):
+    def __init__(self):
         """
         constructor for StringDb class
         :param name: some sort of identifier for the protein it support uniprot, gene name, gene name synonyms
@@ -14,64 +14,73 @@ class StringDb:
         """
         # name parameter supports use of uniprot id, uniprot accession #, gene name, or gene name synonyms
         # default organism is homo sapiens
+        self.string_id = None,
+        self.common_name = None
+        self.annotation = None
+        self.interactions = None
+        self.network = None
+        self.name = None
+        self.species = None
+        self.network_depth = None
+        self.depth = 1
 
+    def gather(self, species, name, get_network=False, network_depth=2):
         self.name = name
-        if species is None:
-            species = 9606
-        else:
-            self.species = species
-        self.get_identifiers()
-        self.get_interactions()
-        self.get_network(network_depth)
+        self.species = species
+        self.network_depth = network_depth
+        self.string_id, self.common_name, self.annotation = self._get_identifiers(species, name)
+        self.interactions = self._get_interactions(self.string_id)
+        if get_network and network_depth > 1:
+            self.network = self.get_network(self.string_id, visited_nodes=None, network_depth=network_depth)
+        return self
 
-    def get_identifiers(self):
+    def _get_identifiers(self, species, name):
         """
         get all the identifiers for the protein of interest.
         :return: self (will change)
         """
         response = requests.get(
-                f"https://string-db.org/api/json/get_string_ids?identifiers={self.name}&species={self.species}")
+            f"https://string-db.org/api/json/get_string_ids?identifiers={name}&species={species}")
 
         response.raise_for_status()
         content = response.content.decode().strip()
         content = json.loads(content)
 
-        self.string_id = content[0]["stringId"]
-        self.common_name = content[0]["preferredName"]
-        self.annotation=content[0]["annotation"]
-        return self
+        string_id = content[0]["stringId"]
+        common_name = content[0]["preferredName"]
+        annotation = content[0]["annotation"]
+        return string_id, common_name, annotation
 
-    def get_interactions(self):
+    def _get_interactions(self, string_id):
         """
         return interactions
         :return: self
         """
         response = requests.get(
-            f"https://string-db.org/api/json/network?identifiers={self.string_id}")
+            f"https://string-db.org/api/json/network?identifiers={string_id}")
         response.raise_for_status()
 
         interactions = response.content.decode().strip()
         interactions = json.loads(interactions)
-        self.interactions=interactions
-        return self
+        return interactions
 
-    #TODO add a depth parameter to this when calling the function after refactoring
-    def get_network(self, visited_nodes=None):
+    def get_network(self, id, visited_nodes=None, network_depth=1):
         """
-        generate a network of interactions for the protein of interest
-        :param depth:
+
+        :param id:
         :param visited_nodes:
+        :param network_depth:
         :return:
         """
         if visited_nodes is None:
             visited_nodes = set()
 
-        if self.string_id in visited_nodes or self.depth < 1:
+        if id in visited_nodes or network_depth < 1:
             return {}
 
-        visited_nodes.add(self.string_id)
-        interactions = self.get_interactions(self.string_id)
-        results = {self.string_id: interactions}
+        visited_nodes.add(id)
+        interactions = self._get_interactions(string_id=id)
+        results = {id: interactions}
         current_depth = self.depth
         while current_depth >= 1:
             for interaction in interactions:
@@ -79,10 +88,9 @@ class StringDb:
                 b = interaction["preferredName_B"]
                 for partner in (a, b):
                     if partner not in visited_nodes:
-                        results.update(self.get_network(partner, current_depth, visited_nodes))
+                        results.update(self.get_network(partner, visited_nodes, current_depth))
             current_depth -= 1
-        self.network = results
-        return self
+        return results
 
     def __str__(self):
         return self.annotation

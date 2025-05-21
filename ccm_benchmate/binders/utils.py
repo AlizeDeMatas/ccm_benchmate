@@ -1,10 +1,7 @@
 # many thanks to @kobehuynh for writing most of this code
 
-import os
-from Bio.PDB import PDBParser
 import numpy as np
-
-import ccm_demo.containers.alphafold3.command as af3 #this is needed for the verify commands
+from Bio.PDB import PDBParser
 
 
 def get_pocket_dimensions(pocket_path):
@@ -46,6 +43,7 @@ def get_pocket_dimensions(pocket_path):
         (z_max + z_min) / 2
     ]
     return center, bbox_size
+
 
 def generate_af3_runner():
     pass

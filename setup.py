@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='ccm_demo',
+    name='ccm_benchmate',
     version='0.1.0',
     description="Python package for demonstrating simple proteomics integrations and one liners",
     author='Alper Celik',
@@ -9,6 +9,6 @@ setup(
     packages=find_packages(),
     zip_safe=False,
     package_data={"": ["*.json"]},
-    scripts=["ccm_demo/scripts/run_mmseqs.sh"],
+    scripts=["ccm_benchmate/scripts/run_mmseqs.sh"],
     include_package_data=True
 )

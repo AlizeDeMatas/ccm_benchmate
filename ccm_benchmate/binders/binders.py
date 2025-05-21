@@ -2,14 +2,15 @@
 
 import os
 import subprocess
-import pandas as pd
 from io import StringIO
 
+import pandas as pd
 from Bio.PDB import *
+
 parser = PDBParser(PERMISSIVE=1)
 
-from ccm_demo.binders.utils import *
-from ccm_demo.container_runner.container_runner import ContainerRunner
+from ccm_benchmate.binders.utils import *
+from ccm_benchmate.container_runner.container_runner import ContainerRunner
 
 from usearch_molecules.dataset import FingerprintedDataset, shape_ecfp4, shape_fcfp4, shape_maccs
 
@@ -21,30 +22,30 @@ class MoleculeBinder:
         :param apis: a Protein object, we need a structure, if the apis does not have a pdb file we can
         either use the structure module to predict one or download from pdb doesn't matter
         """
-        self.pdb=pdb
+        self.pdb = pdb
 
     def find_pockets(self, **kwargs):
         """
         :param kwargs: these are additional key value pairs to be fed into fpocket, read its documentation for details
         :return:
         """
-        command_params=[]
+        command_params = []
         for key, value in kwargs.items():
             command_params.append(f"--{key} {value}")
 
-        command_params=" ".join(command_params)
-        command="fpocket -f {pdb} -x -d {command_params}".format(pdb=self.pdb, command_params=command_params)
-        run=subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        command_params = " ".join(command_params)
+        command = "fpocket -f {pdb} -x -d {command_params}".format(pdb=self.pdb, command_params=command_params)
+        run = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if run.returncode != 0:
             raise RuntimeError(run.stderr.decode())
         else:
-            results=run.stdout.decode()
-            pocket_properties=pd.read_csv(StringIO(results), sep=" ")
-            pocket_list=[file for file in os.listdir(self.pdb.replace(".pdb", "_out")) if file.endswith(".pdb")]
-            pocket_coords=[get_pocket_dimensions(item) for item in pocket_list]
+            results = run.stdout.decode()
+            pocket_properties = pd.read_csv(StringIO(results), sep=" ")
+            pocket_list = [file for file in os.listdir(self.pdb.replace(".pdb", "_out")) if file.endswith(".pdb")]
+            pocket_coords = [get_pocket_dimensions(item) for item in pocket_list]
             return pocket_list, pocket_properties, pocket_coords
 
-    #TODO implement fixed from KOBE
+    # TODO implement fixed from KOBE
     def get_coord_cuboid(pdb_file, amino_acids=None, use_alpha_carbon=False):
 
         """
@@ -90,7 +91,7 @@ class MoleculeBinder:
         x_max, y_max, z_max = np.max(coord_numpy, axis=0)
         x_min, y_min, z_min = np.min(coord_numpy, axis=0)
 
-        return {"xmax":x_max, "ymax":y_max, "zmax":z_max, "xmin":x_min, "ymin":y_min, "zmin":z_min}
+        return {"xmax": x_max, "ymax": y_max, "zmax": z_max, "xmin": x_min, "ymin": y_min, "zmin": z_min}
 
     def generate_molecules(self, container, pocket, fpath, outdir, box_size=None, numsamples=10, max_steps=50):
         """
@@ -99,19 +100,18 @@ class MoleculeBinder:
         :param n:
         :return:
         """
-        command_dict=generate_yaml(fpath, config=config, numsamples=numsamples, max_steps=max_steps)
+        command_dict = generate_yaml(fpath, config=config, numsamples=numsamples, max_steps=max_steps)
         command_dict["bind_mounts"][0]["local"] = os.path.abspath("../containers/pocket2mol/Pocket2Mol")
-        command_dict["bind_mounts"][1]["local"]=os.path.abspath(fpath)
+        command_dict["bind_mounts"][1]["local"] = os.path.abspath(fpath)
         command_dict["bind_mounts"][2]["local"] = os.path.abspath(outdir)
         if box_size is None:
-            box_size="23"
+            box_size = "23"
         command_dict["run_command"] = command_dict["run_command"].format(center=pocket, size=box_size,
                                                                          config="{}/config.yaml".format(fpath),
                                                                          outdir=outdir)
-        runner=ContainerRunner(container, command_dict)
+        runner = ContainerRunner(container, command_dict)
         runner.run()
         return runner
-
 
     def search_molecules(self, smiles, library, using="ecfp4", metric="tanimoto", n=100):
         """
@@ -122,22 +122,21 @@ class MoleculeBinder:
         :param n: number of molecules to return
         :return: list of smiles for molecules
         """
-        if metric !="tanimoto":
+        if metric != "tanimoto":
             raise NotImplementedError("metric must be tanimoto")
 
         if using not in ["ecfp4", "fcfp4", "maccs"]:
             raise NotImplementedError("method must be ecfp4 or fcfp4 or maccs")
-        elif using=="ecfp4":
-            shape=shape_ecfp4
-        elif using=="fcfp4":
-            shape=shape_ecfp4
-        elif using=="maccs":
-            shape=shape_maccs
+        elif using == "ecfp4":
+            shape = shape_ecfp4
+        elif using == "fcfp4":
+            shape = shape_ecfp4
+        elif using == "maccs":
+            shape = shape_maccs
 
-        data=FingerprintedDataset(library, shape=shape)
-        results=data.search(smiles=smiles, n)
+        data = FingerprintedDataset(library, shape=shape)
+        results = data.search(smiles=smiles, n)
         return results
-
 
     def calculate_properties(self, *args):
         """

@@ -1,13 +1,9 @@
-import os
-import warnings
-
 import requests
-
-
-from bs4 import BeautifulSoup as bs
 from Bio import Entrez
+from bs4 import BeautifulSoup as bs
 
-#thin wrapper around the NCBI Entrez API and BioPython
+
+# thin wrapper around the NCBI Entrez API and BioPython
 class Ncbi:
     def __init__(self, api_key=None, email=None):
         """
@@ -15,20 +11,21 @@ class Ncbi:
         :param email: you can also use your email address if these are not provided the searches will be limited and there will be
         stricter rate limits
         """
-        self.search_url= "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
-        self.fetch_url= "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
+        self.search_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
+        self.fetch_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
 
         if email is None and api_key is None:
-            raise ValueError("No email or API key provided. Please provide an email or API key. Some features may not work or return limited results.")
+            raise ValueError(
+                "No email or API key provided. Please provide an email or API key. Some features may not work or return limited results.")
 
-        self.api_key= api_key
-        self.email= email
-        databases=requests.get("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/einfo.fcgi")
-        databases=bs(databases.content, "xml")
-        databases=databases.find_all("DbName")
-        self.databases=[db.text for db in databases]
-        Entrez.email=self.email
-        Entrez.api_key=self.api_key
+        self.api_key = api_key
+        self.email = email
+        databases = requests.get("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/einfo.fcgi")
+        databases = bs(databases.content, "xml")
+        databases = databases.find_all("DbName")
+        self.databases = [db.text for db in databases]
+        Entrez.email = self.email
+        Entrez.api_key = self.api_key
 
     def search(self, db, query, retmax=100):
         """
@@ -38,7 +35,7 @@ class Ncbi:
         :param retmax:
         :return:
         """
-        stream= Entrez.esearch(db=db, term=query, retmax=retmax)
+        stream = Entrez.esearch(db=db, term=query, retmax=retmax)
         record = Entrez.read(stream)
         stream.close()
         ids = record["IdList"]
@@ -63,7 +60,7 @@ class Ncbi:
         :param id: id to fetch
         :return: list parsed from the xml
         """
-        stream=Entrez.efetch(db=db, id=id, retmode="xml")
+        stream = Entrez.efetch(db=db, id=id, retmode="xml")
         record = Entrez.read(stream)
         stream.close()
         return record
@@ -81,4 +78,3 @@ class Ncbi:
         db_info = Entrez.read(stream)
         record = db_info["DbInfo"]
         return record
-
