@@ -20,7 +20,7 @@ Represents a closed interval \[start, end\] (inclusive).
 
 **Example:**
 ```python
-from ccm_demo.ranges import Range
+from ccm_benchmate.ranges.ranges import Range
 
 r1 = Range(10, 20)
 r2 = Range(15, 25)
@@ -40,7 +40,7 @@ A collection of `Range` objects with basic operations.
 
 **Example:**
 ```python
-from ccm_demo.ranges import RangesList, Range
+from ccm_benchmate.ranges.ranges import RangesList, Range
 
 ranges = RangesList([Range(1, 5), Range(3, 7), Range(10, 12)])
 
@@ -61,7 +61,7 @@ A dictionary-like container mapping keys (e.g., names, categories) to `RangesLis
 
 **Example:**
 ```python
-from ccm_demo.ranges import RangesDict, Range, RangesList
+from ccm_benchmate.ranges.ranges import RangesDict, Range, RangesList
 
 rdict = RangesDict()
 rdict["A"] = RangesList([Range(1, 10), Range(15, 20)])
@@ -83,7 +83,7 @@ Represents a genomic interval with chromosome and strand.
 
 **Example:**
 ```python
-from ccm_demo.ranges import GenomicRange
+from ccm_benchmate.ranges.genomicranges import GenomicRange
 
 gr = GenomicRange("chr1", 100, 200, "+")
 print(gr.chrom)    # "chr1"
@@ -100,7 +100,7 @@ A collection of `GenomicRange` objects, supporting chromosome and strand-aware o
 
 **Example:**
 ```python
-from ccm_demo.ranges import GenomicRangesList, GenomicRange
+from ccm_benchmate.ranges.genomicranges import GenomicRangesList, GenomicRange
 
 granges = GenomicRangesList([
     GenomicRange("chr1", 100, 200, "+"),
@@ -138,7 +138,7 @@ A dictionary-like container mapping chromosomes (and optionally strands) to `Gen
 
 **Example:**
 ```python
-from ccm_demo.ranges import GenomicRangesDict, GenomicRange, GenomicRangesList
+from ccm_benchmate.ranges.genomicranges import GenomicRangesDict, GenomicRange, GenomicRangesList
 
 gdict = GenomicRangesDict()
 gdict["chr1"] = GenomicRangesList([

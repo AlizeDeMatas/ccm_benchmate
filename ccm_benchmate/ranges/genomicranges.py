@@ -1,5 +1,5 @@
 
-from ccm_demo.ranges.ranges import Range, RangesList
+from ccm_benchmate.ranges.ranges import Range, RangesList
 
 
 class GenomicRange:
@@ -180,8 +180,11 @@ class GenomicRangesList:
        return coverage
 
     def __getitem__(self, item):
-        assert(isinstance(item, int))
-        return self.items[item]
+        if isinstance(item, int):
+            results = self.items[item]
+        elif isinstance(item, slice):
+            results = RangesList(self.items[item])
+        return results
 
     def __len__(self):
         return len(self.items)

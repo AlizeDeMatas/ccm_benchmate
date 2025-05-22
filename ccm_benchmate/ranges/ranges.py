@@ -162,8 +162,11 @@ class RangesList:
         return coverage
 
     def __getitem__(self, item):
-        assert (isinstance(item, int))
-        return self.items[item]
+        if isinstance(item, int):
+            results=self.items[item]
+        elif isinstance(item, slice):
+            results= RangesList(self.items[item])
+        return results
 
     def __len__(self):
         return len(self.items)

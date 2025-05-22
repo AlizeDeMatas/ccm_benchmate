@@ -2,7 +2,7 @@
 from sqlalchemy import (
     Column, ForeignKey, Integer, String, JSON
 )
-from sqlalchemy.dialects.postgresql import TSVECTOR
+
 from sqlalchemy.orm import declarative_base
 
 
