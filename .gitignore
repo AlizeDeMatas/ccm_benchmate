@@ -7,6 +7,7 @@
 *__pycache__
 ccm_benchmate/sequence/databases
 ccm_benchmate/literature/models
+ccm_benchmate/containers
 notebooks
 *.egg-info
 *.egg
