@@ -6,13 +6,14 @@ import torch
 from biotite.structure import io, to_sequence, sasa
 from biotite.structure.alphabet import to_3di
 
-from ccm_demo.structure.utils import *
+from ccm_benchmate.structure.utils import *
+from ccm_benchmate.containers.alphafold3.command import *
 
 
 class Structure:
-    def __init__(self, pdb=None, sequence=None, predict=True, model="AF3"):
+    def __init__(self, pdb=None, sequence=None):
         """
-
+        constructor for Structure class
         :param pdb:
         :param sequence:
         :param predict:
@@ -23,14 +24,7 @@ class Structure:
             self.structure = io.load_structure(self.pdb)
         if sequence is not None and self.pdb is None:
             self.sequence = sequence
-            if predict:
-                self.structure = self.predict(self.sequence, model)
-        if sequence is not None and pdb is not None:
-            if self.sequence != to_sequence(self.structure):
-                raise ValueError("Sequences do not match")
-            else:
-                self.sequence = sequence
-        self.sasa = None,
+        self.sasa = None
         self.embeddings = None
         self.seq_3di = None
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -97,7 +91,6 @@ class Structure:
     def tm_score(self, other):
         pass
 
-
     #TODO implement AF2, and omegafold
     def predict(self, output_path, container, inference=True, pipeline=False, model="AF3"):
         if model != "AF3":
@@ -111,8 +104,14 @@ class Structure:
         runner=runner.run()
         return runner
 
+    def simulate(self, method="bioemu"):
+        #TODO this will either run openmm or bioemu, the simulation runner is in the utils.
+        pass
+
     def write(self, fpath):
         io.save_structure(self.pdb, fpath)
+
+
 
 
 #TODO implement chai1 and boltz (later)
@@ -120,13 +119,16 @@ class ProteinComplex(Structure):
     def __init__(self, pdb=None, sequence=None):
         super().__init__(pdb=pdb, sequence=sequence)
 
-    def get_chain(self, chain_id):
+    def _get_chain(self, chain_id):
         pass
 
     def get_chain_ids(self):
         pass
 
     def contacts(self):
+        pass
+
+    def predict(self, output_path, container, inference=True, pipeline=False, model="AF3"):
         pass
 
 

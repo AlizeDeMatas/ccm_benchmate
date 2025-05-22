@@ -2,13 +2,25 @@ import os
 import subprocess
 
 from Bio import Seq, SeqIO
+from PIL.features import features
 
-from ccm_demo.sequence.utils import *
+from ccm_benchmate.sequence.utils import *
 
 class Sequence:
-    def __init__(self, name, sequence):
+    def __init__(self, name, sequence, type="protein", features=None):
+        """
+
+        :param name:
+        :param sequence:
+        :param type:
+        :param features:
+        """
+        types=["dna", "rna", "protein", "3di"]
+        if type not in types:
+            raise ValueError("Invalid sequence type, types can be {types}".format(types=", ".join(types)))
         self.name = name
         self.sequence = sequence
+        features=None
         self.device="cuda" if torch.cuda.is_available() else "cpu"
 
     #TODO need to be able to also do a DNA/RNA embedding
@@ -63,17 +75,21 @@ class Sequence:
                 os.remove(os.path.join(destination, item))
         return os.path.join(destination, output_name)
 
-    def blast(self, program, database, threshold=10, hitlist_size=50):
+    def blast(self, program, database, threshold=10, hitlist_size=50, write=True):
         """
         using the ncbi blast api run blast, I am not sure if localblast is needed
         :param program: which blast program to use
         :param database: which database to use
         :param threshold: e value threshold
         :param hitlist_size: how many hits to return
+        :param write: whether to write the output file
         :return:
         """
         search=blast_search(program, database, self.sequence, threshold, hitlist_size)
         results=parse_blast_search(search)
+        #TODO write to file and return path
+        if write:
+            pass
         return results
 
     def write(self, fpath):
@@ -81,15 +97,43 @@ class Sequence:
         with open(fpath, "w") as handle:
             SeqIO.write(seq, handle, "fasta")
 
+    #read a simple fasta or from database
+    def read(self, fpath, db, id):
+        pass
+
     def __str__(self):
         return "Sequence with name {} and {} aas".format(self.name, len(self.sequence))
 
-#TODO think of methods
-class SequenceList(Sequence):
-    def __init__(self):
-        super().__init__()
+#This needs to be different than a list of sequences,
+class SequenceList:
+    def __init__(self, sequences, features=None):
+        """
+        Sequence list object, the only reason for you to use this if you want to create a paired msa,
+        otherwise a list of Sequence instances will have more features.
+        :param sequences: list of Sequence instances
+        :param features: a dict of annotations, whatever you want
+        """
+        for item in sequences:
+            assert isinstance(item, Sequence)
+        self.sequences = sequences
+
+    #paired msa
+    def msa(self, paired=True, **kwargs):
+
+        if not paired:
+            msa = []
+            for item in self.sequences:
+                msa.append=item.msa(kwargs)
+        else:
+            pass
+
+        return msa
+
+
+    #TODO return a multifasta
+    def write(self, fpath):
         pass
 
-    #MSA within the list
-    def msa(self):
+    #TODO read multifasta or from database
+    def read(self, fpath, db, id):
         pass

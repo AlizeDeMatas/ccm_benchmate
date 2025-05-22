@@ -1,4 +1,4 @@
-from ccm_demo.containers import ContainerRunner
+from ccm_benchmate.container_runner.container_runner import ContainerRunner
 from esm.models.esm3 import ESM3
 from esm.sdk.api import ESMProtein, SamplingConfig
 
@@ -23,3 +23,32 @@ def get_esm3_embeddings(file, normalize=True, device="cuda"):
 
 def create_AF3_json(sequence_dict, use_msa=False):
     pass
+
+
+def cleanup():
+    pass
+
+def setup_openmm():
+    pass
+
+def bio_emu_runner():
+    pass
+
+
+
+
+class Simulation:
+    def __init__(self, protein):
+        self.protein = protein
+
+    def cleanup(self):
+        pass
+
+    # TODO openmm with a warning
+    def simulate(self, use_bioemu=True, relax=False):
+        pass
+
+    def save(self):
+        pass
+
+
