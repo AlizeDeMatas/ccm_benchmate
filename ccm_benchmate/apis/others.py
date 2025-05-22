@@ -198,12 +198,6 @@ class BioGrid:
             raise Exception(f"Error: {response.status_code} - {response.text}")
 
 
-
-class OmniPath:
-    def __init__(self):
-        pass
-
-
 class Intact:
     def __init__(self, page=0, page_size=100):
         self.url = 'https://www.ebi.ac.uk/intact/ws/interaction/findInteractions/{}?page={}&pageSize={}'

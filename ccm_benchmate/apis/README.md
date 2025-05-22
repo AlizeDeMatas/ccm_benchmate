@@ -12,145 +12,210 @@ The apis marked with (WIP) are still under development and may not be fully func
 + Ensembl
 + Uniprot
 + NCBI E utils
-+ Reactome (WIP)
++ Reactome
 + stringdb
 + Intact
 + RNAcentral
 + Rfam (WIP)
 + GTEx (WIP)
-+ EBI tools (WIP)
++ EBI tools (requires testing)
 + BioGrid
-+ Omnipath (WIP)
 
 
-These APIs are used to retrieve data from various biological databases and perform operations such as searching for genes, 
-paper etc. Here is a small breakdown of the apis and the overall structure what they return. Depending on the api the
-and the parameters you pass to the api you will get different results. The API classes are designed to be flexible and
-allow for easy customization and extension. You can add new API classes or modify existing ones to suit your needs.
+Here is a `README.md` for the classes under `ccm_benchmate/apis`. Each section describes the class and provides usage examples for each public method.
 
-# API classes
+---
 
-## Ensembl
+## ensembl.Ensembl
 
-The Ensembl API class is used to retrieve data from the Ensembl database. It provides methods for searching for genes,
-transcripts, not all the endpoints are implemented and not sure if they ever will be. Below is a list of the endpoints
+**Description:**  
+Client for the Ensembl REST API. Supports gene, variant, phenotype, sequence, mapping, and overlap queries.
 
-### Variation
-
-The variation API is used to retrieve information about genetic variations. It provides methods for serching for publications
-given a certain variant. This can be taking an rsID and converting into other formats like HGVS or Ensembl ID. It also provides
-methods searching for publications given a certain variant. This can be taking an rsID and converting into other formats like HGVS or Ensembl ID.
-
+**Usage Examples:**
 ```python
-from ccm_demo.apis.ensembl import Ensembl
-ensembl=Ensembl()
-info=ensembl.variation("rs56116432")
+from ccm_benchmate.apis.ensembl import Ensembl
+from ccm_benchmate.ranges.genomicranges import GenomicRange
+
+ensembl = Ensembl()
+
+# Variation info
+info = ensembl.variation("rs56116432")
+info_translated = ensembl.variation("rs56116432", method="translate")
+info_pub = ensembl.variation("26318936", method="publication", pubtype="pubmed")
+
+# VEP (requires Variant class)
+# myvar = Variant(1, 6524705, 6524705, "C", "T")
+# vep_info = ensembl.vep(myvar, check_exists=True)
+
+# Phenotype
+grange = GenomicRange(9, 22125503, 22125502, "+")
+phenotypes = ensembl.phenotype(grange)
+
+# Sequence
+seq = ensembl.sequence("ENSG00000139618")
+
+# Overlap
+features = ["gene", "transcript", "cds", "exon", "repeat"]
+overlap = ensembl.overlap(grange, features)
+
+# Xrefs
+xrefs = ensembl.xrefs("ENSG00000139618")
+
+# Mapping
+mapping = ensembl.mapping("ENSP00000288602", 100, 300)
+
+# Info
+info = ensembl.info()
 ```
 
+---
 
+## uniprot.Uniprot
 
-This assumes that you know the name of the variant that you are interested in. If you do not know if there is an rsid or something
-similar you can use the VEP endpoint to get the information. The VEP endpoint is used to retrieve information about genetic variations and their effects on genes. 
+**Description:**  
+Client for the UniProt API. Retrieves protein information, mutagenesis data, isoforms, and protein-protein interactions.
 
-If you are using the translation method this will convert different ways to represent the variant
-
+**Usage Examples:**
 ```python
-ensembl.variation("rs56116432", method="translate")
+from ccm_benchmate.apis.uniprot import Uniprot
 
-The publication method returns all the variants mentioned in a publication not the other way around. For that you might want to use
-the VEP api. 
+uniprot = Uniprot()
 
-```python
-ensembl.variation("26318936", method="publication", pubtype="pubmed")
+# Get protein info
+protein_info = uniprot.get_protein("P38398")
 
+# Mutagenesis
+mutagenesis = uniprot.get_mutagenesis("P38398")
+
+# Isoforms
+isoforms = uniprot.get_isoforms("P38398")
+
+# Interactions
+interactions = uniprot.get_interactions("P38398")
 ```
 
-### VEP
+---
 
-This is an api that is used to retrieve information about genetic variations and their effects on genes. It provides methods for searching for several
-tools and databases. There is a large list of tools that are available. Depending on the variant not all of them will return a value, for example
-you will not get an alphamissense record for an intronic variant. It will not be null, it just wont be where. So plan your scripts accordingly. 
+## others.GTEX
 
-Please see [here](https://rest.ensembl.org/documentation/info/vep_region_get) for the full list of tools that are available. Currently,
-only region method is implemented and it may stay that way. For getting publication and allele frequency information you will need to specify
-the check_existing method as True. If you do not specify any tools it will return basic information about the variant. 
+**Description:**  
+Client for the GTEx Portal API. Supports querying eQTL, sQTL, and iQTL associations for genes and tissues.
 
-This section is still under development and is not functional as relies on a Variant class (see it's documentation) that is not yet implemented.
-You might getway with it by implementing a simpla variant class on your own like so in the meantime. 
-
+**Usage Examples:**
 ```python
-class Variant:
-    def __init__(self, chrom, start, end, ref, alt):
-        self.chrom = chrom
-        self.start = start
-        self.end = end
-        self.ref = ref
-        self.alt = alt
+from ccm_benchmate.apis.others import GTEX
 
-myvar=Variant(1, 6524705, 6524705, "C", "T")
+gtex = GTEX()
 
-ensembl.vep(myvar, check_exisits=True)
-```
-This method accepts not just SNVs but also small INDEL, DEL, INS and dups, the alt needs to be what it would be on a vcf file. By default
-as it normally does, VEP returns information about all consequences for example consequences on each of the transcripts. 
+# Individual-level eQTLs
+ieqtl_results = gtex.ieqtl(gene="ENSG00000139618", tissue="Liver", dataset="GTEx_Analysis_v8_eQTL")
 
-At any given time, VEP api will return the latest information. There is no way to search for older versions of annotations. If that is 
-what you need you will need a local installation of VEP which are available in HPC.
-
-### Phenotype
-
-This returns all the phenotype information that is associated with a genomic range. It requires a GenomicRange
-object (see it's documentation). 
-
-```python
-from ccm_demo.ranges.genomicranges import GenomicRange
-grange=GenomicRange(9, 22125503, 22125502, "+")
-ensembl.phenotype(grange)
+# Individual-level sQTLs
+isqtl_results = gtex.isqtl(gene="ENSG00000139618", tissue="Liver", dataset="GTEx_Analysis_v8_sQTL")
 ```
 
-### Sequence
+---
 
-This will return the sequence given an ensembl id. If you are looking for just a few things this might be useful. For a more
-performant way of getting the sequence you might want to use the Genome module (see it's docmentation) and associated fasta files. 
+## others.BioGrid
 
-You can specify whether you want the genomics, coding, cdna or protein sequences. You can 
-add or trim 5' and 3' ends of the sequence. 
+**Description:**  
+Client for the BioGRID API. Retrieves molecular interaction data, evidence types, organisms, and supported identifiers.
 
+**Usage Examples:**
 ```python
-ensembl.sequence("ENSG00000139618")
-```
-### Overlap
+from ccm_benchmate.apis.others import BioGrid
 
-This will return the ensembl ids of things that map to a given region. It takes a GenomicRange object and returns the ids
-and basic information about the things that map to that region. Again if you are dealing just a few things you can use this in
-conjunction with the sequence apis to get what you need. 
+biogrid = BioGrid(access_key="YOUR_BIOGRID_KEY")
 
-```python
-grange=GenomicRange(9, 22125503, 22125502, "+")
-features=["gene", "transcript", "cds", "exon", "repeat"]
-ensembl.overlap(grange, features)
-```
+# Interactions
+interactions_df = biogrid.interactions(
+    gene_list=["TP53", "BRCA1"],
+    id_types=["entrez"],
+    evidence_types=["physical"]
+)
 
-### Xrefs
+# Evidence types
+evidence_types = biogrid._get_evidence_types()
 
-This returns all the cross references that are associated with an ensembl id. This is useful to get ids of things for other
-databases that in turn you can use to search. 
+# Organisms
+organisms = biogrid._get_organisms()
 
-### Mapping
-
-This can convert cDNA/CDS/protein coodinates and genomic coordinates. Because these are arbitrary coordinates you need to
-pass the coodrinates you are interested in. 
-
-```python
-ensembl.mapping("ENSP00000288602", 100, 300)
+# Supported identifiers
+id_types = biogrid._get_supported_identifiers()
 ```
 
-### Info
+---
 
-This method is meant to be used as an exploratory mechanism before you automate your api calls and research needs. It provides
-information about different datasets that are currently available in the API and how they can be queried. I am currenly only
-retrieving species, divisions and consequences (for variation and VEP). The rest of the information is not yet implemented.
+## others.Intact
 
-# NCBI E utils
+**Description:**  
+Client for the IntAct molecular interaction database. Fetches protein-protein interactions using EBI IDs.
 
-This is a very thin wrapper around the NCBI E utils API. It has features that allows
+**Usage Examples:**
+```python
+from ccm_benchmate.apis.others import Intact
+
+intact = Intact()
+
+# Search for interactions by EBI ID
+interactions, last_page = intact._search("EBI-123456")
+
+# Retrieve all interactions for a given interactor (requires intact.interactions to be set)
+# all_interactions_df = intact.intact_search(page=0, page_size=1000)
+```
+
+---
+
+## reactome.Reactome
+
+**Description:**  
+Client for the Reactome API. Accesses pathway and reaction data for genes and proteins.
+
+**Usage Examples:**
+```python
+from ccm_benchmate.apis.reactome import Reactome
+
+reactome = Reactome()
+
+# Get pathways for a gene
+pathways = reactome.get_pathways("TP53")
+```
+
+---
+
+## rna.RNACentral
+
+**Description:**  
+Client for the RNAcentral API. Retrieves non-coding RNA information and cross-references.
+
+**Usage Examples:**
+```python
+from ccm_benchmate.apis.rna import RNACentral
+
+rna_central = RNACentral()
+
+# Get RNA info
+rna_info = rna_central.get_rna("URS000075C6A6")
+```
+
+---
+
+## stringdb.Stringdb
+
+**Description:**  
+Client for the STRING database API. Fetches protein-protein interaction networks and functional enrichment data.
+
+**Usage Examples:**
+```python
+from ccm_benchmate.apis.stringdb import Stringdb
+
+stringdb = Stringdb()
+
+# Get interaction network
+network = stringdb.get_network("9606.ENSP00000354587")
+```
+
+---
+
+**Note:**  
+Replace example IDs and access keys with valid values. Refer to each class's docstrings for more details on available methods and parameters.
