@@ -1,11 +1,19 @@
 import os
 import subprocess
+import warnings
 
 from Bio import Seq, SeqIO
-from PIL.features import features
 
 from ccm_benchmate.sequence.utils import *
 
+class NoSequenceError(Exception):
+    """
+    Exception raised when there is no sequence in the file.
+    """
+    def __init__(self, message):
+        super().__init__(message)
+
+#TODO features, what could this be?
 class Sequence:
     def __init__(self, name, sequence, type="protein", features=None):
         """
@@ -99,7 +107,22 @@ class Sequence:
 
     #read a simple fasta or from database
     def read(self, fpath, db, id):
-        pass
+        fasta_sequences = SeqIO.parse(open(fpath),'fasta')
+        length=len(fasta_sequences)
+        if length < 1:
+            raise NoSequenceError("There are no sequences in the file {}".format(fpath))
+        elif length > 1:
+            warnings.warn("There are multiple sequences in the file {} so will be returning a SequenceList".format(fpath))
+            sequences=[]
+            for fasta in fasta_sequences:
+                name, sequence = fasta.id, str(fasta.seq)
+                sequences.append(Sequence(name=name, sequence=sequence))
+                return SequenceList(sequences=sequences)
+        else:
+            for fasta in fasta_sequences:
+                name, sequence = fasta.id, str(fasta.seq)
+                return Sequence(name=name, sequence=sequence)
+
 
     def __str__(self):
         return "Sequence with name {} and {} aas".format(self.name, len(self.sequence))
@@ -117,23 +140,37 @@ class SequenceList:
             assert isinstance(item, Sequence)
         self.sequences = sequences
 
-    #paired msa
-    def msa(self, paired=True, **kwargs):
-
-        if not paired:
-            msa = []
-            for item in self.sequences:
-                msa.append=item.msa(kwargs)
-        else:
-            pass
-
-        return msa
-
+    #TODO paired msa
+    def msa(self, **kwargs):
+        for item in self.sequences:
+            if not isinstance(item, Sequence):
+                raise TypeError("All items in the sequence list must be of type Sequence")
+            else:
+                item.msa(**kwargs)
 
     #TODO return a multifasta
     def write(self, fpath):
-        pass
+        seqs= []
+        for item in self.sequences:
+            seqs.append(SeqIO.SeqRecord(Seq.Seq(item.sequence), id=item.name, description=""))
+        with open(fpath, "w") as handle:
+            SeqIO.write(seqs, handle, "fasta")
 
     #TODO read multifasta or from database
     def read(self, fpath, db, id):
-        pass
+        fasta_sequences = SeqIO.parse(open(fpath), 'fasta')
+        length = len(fasta_sequences)
+        if length < 1:
+            raise NoSequenceError("There are no sequences in the file {}".format(fpath))
+        elif length == 1:
+            warnings.warn(
+                "There is onle one sequence in the file {} so will be returning a Sequence".format(fpath))
+            for fasta in fasta_sequences:
+                name, sequence = fasta.id, str(fasta.seq)
+                return Sequence(name=name, sequence=sequence)
+        else:
+            sequences = []
+            for fasta in fasta_sequences:
+                name, sequence = fasta.id, str(fasta.seq)
+                sequences.append(Sequence(name=name, sequence=sequence))
+                return SequenceList(sequences=sequences)
