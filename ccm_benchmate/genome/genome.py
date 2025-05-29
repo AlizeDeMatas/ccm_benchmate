@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session
 from Bio import Seq, SeqIO
 import pysam
 
-from ccm_demo.genome.utils import parse_gtf, insert_genome
-from ccm_demo.ranges.genomicranges import *
+from ccm_benchmate.genome.utils import parse_gtf, insert_genome
+from ccm_benchmate.ranges.genomicranges import *
 
 
 class Genome:
