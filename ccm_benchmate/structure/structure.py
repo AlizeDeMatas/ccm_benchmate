@@ -1,9 +1,10 @@
-import os
+
 import subprocess
 
 import requests
 import torch
-from biotite.structure import io, to_sequence, sasa
+from biotite.structure import sasa, distance, to_sequence, get_chains
+from biotite.structure.io.pdb import PDBFile
 from biotite.structure.alphabet import to_3di
 
 from ccm_benchmate.structure.utils import *
@@ -21,7 +22,7 @@ class Structure:
         """
         self.pdb = pdb
         if pdb is not None:
-            self.structure = io.load_structure(self.pdb)
+            self.structure = PDBFile.read(self.pdb).get_structure()[0]
         if sequence is not None and self.pdb is None:
             self.sequence = sequence
         self.sasa = None
@@ -46,7 +47,7 @@ class Structure:
         self.pdb = "{}/{}.pdb".format(destination, id)
 
         if load_after_download:
-            atom_array = io.load_structure(self.pdb)
+            atom_array = PDBFile.read(self.pdb).get_structure()[0](self.pdb)
         self.structure = atom_array
         return self
 
@@ -109,24 +110,56 @@ class Structure:
         pass
 
     def write(self, fpath):
-        io.save_structure(self.pdb, fpath)
+        PDBFile.write(self.pdb, fpath)
 
 
-
-
-#TODO implement chai1 and boltz (later)
 class ProteinComplex(Structure):
     def __init__(self, pdb=None, sequence=None):
         super().__init__(pdb=pdb, sequence=sequence)
+        self.chains=get_chains(self.structure)
 
     def _get_chain(self, chain_id):
-        pass
+        if type(chain_id) is int:
+            chain_id = self.chains[chain_id]
+        elif type(chain_id) is str:
+            chain = self.structure[self.structure.chain_id==chain_id]
+        else:
+            raise ValueError("Chain ID must be an integer or a string representing the chain ID")
+        return chain
 
     def get_chain_ids(self):
-        pass
+        return self.chains
 
-    def contacts(self):
-        pass
+    def contacts(self, chain_id1, chain_id2, cutoff=5.0, level="atom", measure="any"):
+        """
+        Get contacts between two chains in the structure.
+        :param chain_id1:
+        :param chain_id2:
+        :param cutoff:
+        :return:
+        """
+        chain1 = self._get_chain(chain_id1)
+        chain2 = self._get_chain(chain_id2)
+        contacts=[]
+        for i in range(len(chain1)):
+            for j in range(len(chain2)):
+                if measure == "any":
+                    dist = distance(chain1[i], chain2[j])
+                elif measure=="CA":
+                    if "CA" in chain1[i].atom_name and "CA" in chain2[j].atom_name:
+                        dist = distance(chain1[i], chain2[j])
+                    else:
+                        continue
+                if dist < cutoff:
+                    if level == "atom":
+                        contacts.append({chain_id1: i, chain_id2: j,
+                                     "distance": dist})
+                    elif level == "residue":
+                        contacts.append({chain_id1: chain1[i].res_id, chain_id2: chain2[j].res_id,
+                                     "distance": dist})
+
+        return contacts
+
 
     def predict(self, output_path, container, inference=True, pipeline=False, model="AF3"):
         pass
