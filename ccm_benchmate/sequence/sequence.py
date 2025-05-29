@@ -174,3 +174,126 @@ class SequenceList:
                 name, sequence = fasta.id, str(fasta.seq)
                 sequences.append(Sequence(name=name, sequence=sequence))
                 return SequenceList(sequences=sequences)
+
+    def __getitem__(self, item):
+        if isinstance(item, int):
+            results = self.items[item]
+        elif isinstance(item, slice):
+            results = SequenceList(self.items[item])
+        return results
+
+    def __len__(self):
+        return len(self.items)
+
+    def __iter__(self):
+        return iter(self.items)
+
+    def __add__(self, other):
+        assert(isinstance(other, SequenceList))
+        return SequenceList(self.items + other.items)
+
+    def __sub__(self, other):
+        assert(isinstance(other, SequenceList))
+        return SequenceList([item for item in self.items if item not in other.items])
+
+    def __contains__(self, item):
+        assert(isinstance(item, SequenceList))
+        return item in self.items
+
+    def __str__(self):
+        return f"SequenceList({self.items})"
+
+    def __repr__(self):
+        return f"SequenceList({self.items})"
+
+    def __setitem__(self, index, value):
+        assert(isinstance(index, int))
+        assert(isinstance(value, Sequence))
+        self.items[index] = value
+
+    def __delitem__(self, index):
+        assert(isinstance(index, int))
+        del self.items[index]
+
+    def __eq__(self, other):
+        assert(isinstance(other, SequenceList))
+        if len(self.items) != len(other.items):
+            return False
+        for item in self.items:
+            if item not in other.items:
+                return False
+        return True
+
+    def __ne__(self, other):
+        if not isinstance(other, SequenceList):
+            return True
+        elif self==other:
+            return False
+        else:
+            return True
+
+class SequenceDict(dict):
+    def __init__(self, keys, values):
+        for key, value in zip(keys, values):
+            assert(isinstance(key, str))
+            assert(isinstance(value, Sequence) or isinstance(value, SequenceList))
+            self[key] = value
+
+    def __getitem__(self, key):
+        assert (isinstance(key, str))
+        return super().__getitem__(key)
+
+    def __setitem__(self, key, value):
+        assert (isinstance(key, str))
+        assert (isinstance(value, SequenceList) or isinstance(value, Sequence))
+        super().__setitem__(key, value)
+
+    def __delitem__(self, key):
+        assert (isinstance(key, str))
+        super().__delitem__(key)
+
+    def __iter__(self):
+        return iter(self.keys())
+
+    def __eq__(self, other):
+        if not isinstance(other, SequenceDict):
+            return False
+        if len(self) != len(other):
+            return False
+        for key in self.keys():
+            if key not in other.keys():
+                return False
+            if self[key] != other[key]:
+                return False
+        return True
+
+    def __ne__(self, other):
+        if not isinstance(other, SequenceDict):
+            return True
+        elif self == other:
+            return False
+        else:
+            return True
+
+    def __str__(self):
+        return f"SequenceDict({self.items()})"
+
+    def __repr__(self):
+        return f"SequenceDict({self.items()})"
+
+    def __len__(self):
+        return len(self.items())
+
+    def __contains__(self, item):
+        assert (isinstance(item, str))
+        return item in self.keys()
+
+    def write(self, fpath):
+        seqs= []
+        for key, value in self.items:
+            seqs.append(SeqIO.SeqRecord(Seq.Seq(value.sequence), id=value.name, description=value.key))
+        with open(fpath, "w") as handle:
+            SeqIO.write(seqs, handle, "fasta")
+
+   # THere is no read methods because this is constructed from list of sequences or individual sequences.
+
