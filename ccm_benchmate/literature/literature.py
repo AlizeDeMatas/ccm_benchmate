@@ -3,7 +3,7 @@ import warnings
 
 from bs4 import BeautifulSoup as bs
 
-from ccm_demo.literature.utils import *
+from ccm_benchmate.literature.utils import *
 
 class NoPapersError(Exception):
     pass

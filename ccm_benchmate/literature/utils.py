@@ -18,8 +18,8 @@ from chonkie import SemanticChunker, Model2VecEmbeddings
 from colpali_engine.models import ColPali, ColPaliProcessor
 
 
-from ccm_demo.literature.configs import *
-from ccm_demo.utils.general_utils import *
+from ccm_benchmate.literature.configs import *
+from ccm_benchmate.utils.general_utils import *
 
 def interpret_image(image, prompt, processor, model, max_tokens, device):
     """
