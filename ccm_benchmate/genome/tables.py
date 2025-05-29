@@ -16,6 +16,9 @@ class Genome(Base):
     genome_id=Column(String, nullable=True)
     version = Column(String, nullable=True)
     source=Column(String, nullable=True)
+    genome_fasta_file = Column(String, nullable=True)
+    transcriptome_fasta_file = Column(String, nullable=True)
+    proteome_fasta_file = Column(String, nullable=True)
 
 class Chrom(Base):
     __tablename__ = 'chrom'
