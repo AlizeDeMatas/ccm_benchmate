@@ -1,4 +1,5 @@
 import pandas as pd
+import json
 
 from ccm_benchmate.utils.general_utils import *
 
@@ -14,28 +15,14 @@ class UniProt:
         """
         self.url = "https://www.ebi.ac.uk/proteins/api/proteins?accession={}"
         self.headers = {'Accept': 'application/json'}
-        self.description = None
-        self.xrefs = None
-        self.xref_types = None
-        self.variation = None
-        self.comment_types = None
-        self.gene = None
-        self.name = None
-        self.alternative_names = None
-        self.feature_types = None
-        self.sequence = None
-        self.organism = None
-        self.secondary_accessions = None
-        self.id = None
-        self.json = None
+
 
     def _gather(self, uniprot_id):
         """
         This function gathers data from the UniProt API using the provided uniprot_id.
         :return: whole json response from the API
         """
-        url = self.urls["base_response"].format(uniprot_id)
-        response = requests.get(url, headers=self.headers)
+        response = requests.get(self.url.format(uniprot_id), headers=self.headers)
         content = warn_for_status(response, "issues with gathering data")
         if content is not None:
             content = json.loads(content)
@@ -44,8 +31,7 @@ class UniProt:
             else:
                 content = content[0]
 
-        self.json = content
-        return self
+        return content
 
     def search_uniprot(self, uniprot_id, consolidate_refs=True, get_variations=True,
                        get_interactions=True, get_mutagenesis=True, get_isoforms=True):
@@ -53,87 +39,103 @@ class UniProt:
         process the json response from the UniProt API and extract relevant information.
         :return: returns self because it modfies the class instance
         """
-        self._gather(uniprot_id)
-        self.id = self.json["id"]
-        self.sequence = self.json["sequence"]["sequence"]
-        self.organism = {"name": self.json["organism"]['names'], "taxid": self.json["organism"]["taxonomy"]}
-        if "secondaryAccession" in self.json["apis"].keys():
-            self.secondary_accessions = [self.json["secondaryAccession"]]
-        self.name = self.json["apis"]['recommendedName']["fullName"]['value']
-        if "alternativeNames" in self.json["apis"].keys():
-            self.alternative_names = self.json["apis"]['alternativeName']
-        self.gene = self.json['gene']
-        self.feature_types = set([feat['type'] for feat in self.json["features"]])
-        self.comment_types = set([feat["type"] for feat in self.json['comments']])
-        self.references = self._extract_references()
-        self.xref_types, self.xrefs = self._extract_xrefs()
-        self.description = self._extract_description()
+        id = uniprot_id
+        json=self._gather(uniprot_id)
+        sequence = json["sequence"]["sequence"]
+        organism = {"name": json["organism"]['names'], "taxid": json["organism"]["taxonomy"]}
+
+        gene = json['gene']
+        feature_types = set([feat['type'] for feat in json["features"]])
+        comment_types = set([feat["type"] for feat in json['comments']])
+        references = self._extract_references(json)
+        xref_types, xrefs = self._extract_xrefs(json)
+        description = self._extract_description(json)
+        name = json["protein"]['recommendedName']["fullName"]['value']
+        results = {"id": id, "name": name, "sequence": sequence, "organism": organism, "gene": gene,
+                   "feature_types": feature_types, "comment_types": comment_types, "references": references,
+                   "xref_types": xref_types, "xrefs": xrefs, "description": description, "json": json,}
+
+        if "secondaryAccession" in json.keys():
+            secondary_accessions = [json["secondaryAccession"]]
+            results["secondary_accessions"] = secondary_accessions
+
+        if "alternativeNames" in json.keys():
+            alternative_names = json['alternativeName']
+            results["alternative_names"] = alternative_names
+
         if get_variations:
-            self.variation = self._get_variations()
+            variation = self._get_variations(results)
+            results["variation"] = variation
 
         if get_interactions:
-            self.interactions = Interactions(self.id)
+            interactions =Interactions(results).gather()
+            results["interactions"] = interactions
 
         if get_mutagenesis:
-            self.mutagenesis = Mutagenesis(self.id)
+            mutagenesis = Mutagenesis(results).gather()
+            results["mutagenesis"] =mutagenesis
 
         if get_isoforms:
-            self.isoforms = Isoforms(self.id)
+            isoforms = Isoforms(results).gather()
+            results["isoforms"] = isoforms
 
         if consolidate_refs:
-            self.references = self.consolidate_references()
-        return self
+            references = self.consolidate_references(results)
+            results["references"] = references["references"]
 
-    def _extract_description(self):
+        return results
+
+    def _extract_description(self, results):
         """
         concanate the comments from the json response into a single string this can be used in nlp tasks or comparing
         uniprot instances
         :return:
         """
         desc = []
-        for comment in self.json["comments"]:
+        for comment in results["comments"]:
             if "texts" in comment.keys():
                 desc.append("\n".join([item["value"] for item in comment["texts"]]))
 
         description = "\n".join(desc)
         return description
 
-    def _extract_references(self):
+    def _extract_references(self, results):
         """
         internal function to extract references from the json response
         :return: references
         """
         refs = []
-        for reference in self.json["references"]:
-            for db in reference["dbReferences"]:
-                if db["type"] in ["PubMed", "arxiv", "medarxiv", "bioarxiv"]:
-                    refs.append(db)
+        for reference in results["references"]:
+            if "dbReferences" in reference["citation"].keys():
+                for db in reference["citation"]["dbReferences"]:
+                    if db["type"] in ["PubMed"]:
+                        refs.append(db["id"])
 
-        return references
+        return refs
 
-    def _extract_xrefs(self):
+    def _extract_xrefs(self, results):
         """
         internal function to extract xrefs from the json response
         :return: xref types and xrefs
         """
-        xrefs = self.json["dbReferences"]
+        xrefs = results["dbReferences"]
         xref_types = list(set([item["type"] for item in xrefs]))
         xrefs = pd.DataFrame(xrefs)
         return xref_types, xrefs
 
-    def get_features(self, feature_types=None):
+    def get_features(self, results, feature_types=None):
         """
         filter already extracted features by type
         :param feature_types: type of the feature to filter by
         :return: the features
         """
         if feature_types is not None:
-            features = [feat for feat in self.json["features"] if feat["type"] in feature_types]
+            features = [feat for feat in results["features"] if feat["type"] in feature_types]
         else:
-            features = [feat for feat in self.json["features"]]
+            features = [feat for feat in results["features"]]
         return features
 
-    def get_comments(self, types=None):
+    def get_comments(self, results, types=None):
         """
         get already extracted comments from the json response
         :param types: comment types to filter by
@@ -142,18 +144,18 @@ class UniProt:
         if types is not None:
             if type(types) == str:
                 types = [types]
-            comments = [comment for comment in self.json["comments"] if comment["type"] in types]
+            comments = [comment for comment in results["comments"] if comment["type"] in types]
         else:
-            comments = [feat for feat in self.json["comments"]]
+            comments = [feat for feat in results["comments"]]
         return comments
 
-    def get_variations(self):
+    def _get_variations(self, results):
         """
         query the uniprot API for variations
         :return: pandas DataFrame with the variations
         """
-        url = 'https://www.ebi.ac.uk/proteins/api/variation?offset=0&size=-1&accession={}',
-        variants = requests.get(url.format(self.uniprot_id))
+        url = 'https://www.ebi.ac.uk/proteins/api/variation?offset=0&size=-1&accession={}'
+        variants = requests.get(url.format(results["id"]), headers=self.headers)
         warn_for_status(variants, "issues with getting variation")
         variants = json.loads(variants.content.decode())[0]
         variants = variants["features"]
@@ -161,40 +163,35 @@ class UniProt:
         variation = variants
         return variation
 
-    def consolidate_references(self):
+    def consolidate_references(self, results):
         """
         pul all references from the isoforms, mutagenesis, interactions and variations into a single list this is useful
         for literature mining and other tasks
         :return: references
         """
-        if self.isoforms.isoforms is not None:
-            for isoform in self.isoforms.isoforms:
+
+        if "isoforms" in results.keys() and results["isoforms"] is not None:
+            for isoform in results["isoforms"]:
                 for refs in isoform["pubmed_id"]:
-                    self.references.append({"type": "Pubmed", "id": refs["pubmed_id"]})
+                    results["references"].append(refs["pubmed_id"])
 
-        if self.mutagenesis.mutations is not None:
-            for ref in self.mutagenesis.mutations["pubmed_id"].tolist():
-                self.references.extend(ref)
+        if "mutagenesis" in results.keys() and results["mutagenesis"] is not None:
+            for refs in results["mutagenesis"]["pubmed_id"].tolist():
+                if refs is not None:
+                    for ref in refs:
+                        results["references"].append(ref)
 
-        if self.interactions.interactions is not None:
-            if self.interactions.intact_results is not None:
-                self.references.extend(self.interactions.intact_results["pubmed_id"].tolist())
-
-        if self.variation is not None and "evidences" in self.variation.columns:
-            var_refs = self.variation["evidences"].dropna().tolist()
+        if "variation" in results.keys() and results["variation"] is not None \
+                and "evidences" in results["variation"].columns:
+            var_refs = results["variation"]["evidences"].dropna().tolist()
             for ref_list in var_refs:
                 for ref in ref_list:
                     if ref["source"]["name"].lower() == "pubmed":
-                        self.references.append(ref["source"]["id"])
+                        results["references"].append(ref["source"]["id"])
 
-        references = list(set(self.references))
-        return references
+        results["references"]=list(set(results["references"]))
+        return results
 
-    def __str__(self):
-        return self.description
-
-    def __repr__(self):
-        return "Uniprot instance with name {} and {} aa long".format(self.name, len(self.sequence))
 
 
 # TODO refactor to seprate intact
@@ -206,28 +203,26 @@ class Interactions:
         :param search_intact:
         :param kwargs:
         """
-        self.intact_results = None
-        self.interactions = None
-        self.uniprot_id = uniprot.uniprot_id
+        self.uniprot_id = uniprot["id"]
         self.url = 'https://www.ebi.ac.uk/proteins/api/proteins/interaction/{}'
         self.headers = {'Accept': 'application/json'}
         self.gather()
 
     def gather(self):
-        response = requests.get(self.urls["interactions"].format(self.uniprot_id), headers=self.headers)
+        response = requests.get(self.url.format(self.uniprot_id), headers=self.headers)
         content = warn_for_status(response, "issues with gathering interaction data from intact")
         if content is not None:
             content = json.loads(content)
             content = pd.DataFrame(content[0]["interactions"])
-        self.interactions = content
+        interactions = content
+        return interactions
 
     # TODO need to move logic out of there for recursion need a __method__
 
 
 class Isoforms:
     def __init__(self, uniprot):
-        self.isoforms = None
-        self.uniprot_id = uniprot.uniprot_id
+        self.uniprot_id = uniprot["id"]
         self.url = 'https://www.ebi.ac.uk/proteins/api/proteins/{}/isoforms'
         self.headers = {'Accept': 'application/json'}
         self.gather()
@@ -237,7 +232,7 @@ class Isoforms:
         isoforms_response = requests.get(self.url.format(self.uniprot_id), headers=self.headers)
         if isoforms_response.status_code != 200:
             warnings.warn("Did not find any isoforms for {}".format(self.uniprot_id))
-            self.isoforms = None
+            isoforms = None
         else:
             isoforms_response = json.loads(isoforms_response.content.decode())
             for iso in isoforms_response:
@@ -257,8 +252,8 @@ class Isoforms:
                 isoform = {"accession": accession, "comments": comments, "sequence": sequence, "pubmed_id": ref_ids,
                            "external_references": external_references, }
                 isoforms.append(isoform)
-            self.isoforms = isoforms
-        return self
+            isoforms = isoforms
+        return isoforms
 
 
 class Mutagenesis:
@@ -268,10 +263,9 @@ class Mutagenesis:
         seen in the wild but from experimental data
         :param uniprot: uniprot class
         """
-        self.uniprot_id = uniprot.uniprot_id
+        self.uniprot_id = uniprot["id"]
         self.url = 'https://www.ebi.ac.uk/proteins/api/mutagenesis?offset=0&size=-1&accession={}'
         self.headers = {'Accept': 'application/json'}
-        self.mutations = self.gather()
 
     def gather(self):
         mutations = []

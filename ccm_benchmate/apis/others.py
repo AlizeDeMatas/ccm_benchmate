@@ -2,6 +2,7 @@
 
 import pandas as pd
 import requests
+import json
 
 #TODO: add docstrings to all classes and methods not all methods are implemented yet.
 class GTEX:
@@ -198,7 +199,7 @@ class BioGrid:
             raise Exception(f"Error: {response.status_code} - {response.text}")
 
 
-class Intact:
+class IntAct:
     def __init__(self, page=0, page_size=100):
         self.url = 'https://www.ebi.ac.uk/intact/ws/interaction/findInteractions/{}?page={}&pageSize={}'
         self.page = page
@@ -232,8 +233,7 @@ class Intact:
 
         return interactions, last_page
 
-    def intact_search(self, page=0, page_size=1000):
-        ebi_id = self.interactions["interactor1"].tolist()[0]
+    def intact_search(self, ebi_id, page=0, page_size=1000):
         interactions, last_page = self._search(ebi_id, page, page_size)
         while not last_page:
             page = page + 1

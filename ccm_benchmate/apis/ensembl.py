@@ -154,7 +154,7 @@ class Ensembl:
         :return: dict of mapping information, this not really compatible with genomicranges that's why the inputs are different
         """
         if type == "cDNA":
-            ext = f"/mapping/cdns/{id/start}..{end}"
+            ext = f"/mapping/cdna/{id/start}..{end}"
         elif type == "CDS":
             ext = f"/mapping/cds/{id/start}..{id/end}"
         elif type == "protein":
