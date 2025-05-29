@@ -285,7 +285,7 @@ class GenomicRangesDict(dict):
 
     def __setitem__(self, key, value):
         assert (isinstance(key, str))
-        assert (isinstance(value, GenomicRangesDict) or isinstance(value, GenomicRange))
+        assert (isinstance(value, GenomicRangesList) or isinstance(value, GenomicRange))
         super().__setitem__(key, value)
 
     def __delitem__(self, key):
