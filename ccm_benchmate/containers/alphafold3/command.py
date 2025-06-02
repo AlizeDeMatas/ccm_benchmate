@@ -2,7 +2,7 @@
 
 import json
 import string
-from ccm_demo.containers.utils import *
+import os
 
 def generate_alpha_id(n):
     alpha_IDs = list(string.ascii_uppercase)

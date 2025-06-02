@@ -3,11 +3,8 @@ from sqlalchemy import (
     Column, ForeignKey, Integer, String, JSON
 )
 
-from sqlalchemy.orm import declarative_base
+from ccm_benchmate.knowledge_base.tables import Base
 
-
-# Should support multiple genomes now
-Base = declarative_base()
 
 #TODO metadata about the genome like spikeins etc
 class Genome(Base):
