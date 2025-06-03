@@ -26,3 +26,5 @@ adapters
 colpali-engine>=0.3.0
 omnipath[graph]
 pytest
+docker
+jsonschema
