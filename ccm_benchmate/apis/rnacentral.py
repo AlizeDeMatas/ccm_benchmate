@@ -2,58 +2,6 @@ import pandas as pd
 import requests
 
 
-# TODO This is not done, but also not sure if needed
-class Rfam:
-    def __init__(self, rfam_api_url: str = "https://rfam.org/"):
-        self.rfam_api_url = rfam_api_url,
-        self.headers = {"Content-Type": "application/json"}
-
-    # a function for each endpoint
-    def family(self, family_id: str):
-        """
-        Get information about a specific Rfam family.
-        :param family_id: The ID of
-        :return: A dictionary containing information about the family.
-        """
-        pass
-
-    def secondary_structure(self, id: str, type: str):
-        """
-        Get the secondary structure of a specific Rfam family.
-        :param family_id: The ID of the family.
-        :return: A dictionary containing the secondary structure information.
-        """
-        if type not in ["cons", "fcbp", "cov", "ent", "maxcm", "norm", "rscape", "rscape-cyk"]:
-            raise ValueError(
-                "Invalid type. Must be one of ['cons', 'fcbp', 'cov', 'ent', 'maxcm', 'norm', 'rscape', 'rscape-cyk']")
-
-        else:
-            self._get_data(self.base_url + f"/")
-
-    def regions(self, id: str):
-        """
-        Get the regions of a specific Rfam family.
-        :param family_id: The ID of the family.
-        :return: A dictionary containing the regions information.
-        """
-        pass
-
-    def phylogenic_tree(self, id: str):
-        """
-        Get the phylogenic tree of a specific Rfam family.
-        :param family_id: The ID of the family.
-        :return: A dictionary containing the phylogenic tree information.
-        """
-        pass
-
-    def alignments(self, id: str, format: str = "stockholm"):
-        """
-        Get the alignments of a specific Rfam family.
-        :param family_id: The ID of the family.
-        :return: A dictionary containing the alignments information.
-        """
-        pass
-
 
 # TODO this needs to be refactored so that id is not passed in the constructor or conver the whole thing to dataclasses
 class RnaCentral:

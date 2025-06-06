@@ -6,7 +6,7 @@ from ccm_benchmate.apis import (
     others,
     reactome,
     uniprot,
-    rna, stringdb
+    rnacentral, stringdb
 )
 
 class ApiCalls:
