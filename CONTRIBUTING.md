@@ -102,6 +102,17 @@ For processing data, and general manipulation tasks create a module called `util
 that are helper functions and classes but do not perform the main task. For example: a function that takes all the
 tab (`\t`) and converts them to new lines (`\n`) will be in the utils.
 
+If this module is going to be part of the knowledge base and will be used by other modules, please make sure that you describe
+in detail how it works and what it does in the `README.md` file. 
+
+Additionally you will need to structure your data in a way that it can be stored in a normalized SQL database. This means that
+you will need to create a module called tables.py and that will contain the SQLAlchemy models that will be used to generate and
+populate the tables in the database. Some of the modules already have this files, so feel free to use them as a reference.
+
+If you are not familiar with SQLAlchemy, please take a look at the [SQLAlchemy documentation](https://docs.sqlalchemy.org/en/14/orm/tutorial.html) and
+if you have any questions about how to sructure your data in a way that it can be stored in a normalized SQL database, see 
+[here](https://www.datacamp.com/tutorial/normalization-in-sql) for reference and you can always reach out to us via issues.
+
 There is no limit to how many modules you can create but one helpful rule I find is to focus on the task not on the
 code. Each task should get its own module that is then imported by the main module.
 
@@ -215,6 +226,8 @@ number of dependencies.
 If your code requires extensive parameters (it might for experimentation) you can have a `json` or a `yaml` file to
 keep these values as a key:value store. Make sure that this file location is NOT hardcoded but rather passed as an
 argument in the callable script.
+
+
 
 ### Push guides
 
