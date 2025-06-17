@@ -3,12 +3,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB
 
-from sqlalchemy.orm import declarative_base
 
-
-# Should support multiple genomes now
-Base = declarative_base()
-
+from ccm_benchmate.knowledge_base.tables import Base
 
 class Sequence(Base):
     __tablename__ = 'sequence'

@@ -189,8 +189,9 @@ pathways = reactome.get_pathways("TP53")
 Client for the RNAcentral API. Retrieves non-coding RNA information and cross-references.
 
 **Usage Examples:**
+
 ```python
-from ccm_benchmate.apis.rna import RNACentral
+from ccm_benchmate.apis.rnacentral import RNACentral
 
 rna_central = RNACentral()
 
