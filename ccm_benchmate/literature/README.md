@@ -114,4 +114,4 @@ print(paper.paper_info)        # Metadata from OpenAlex
 - Some features require paper IDs and won't work with local PDFs only
 - PDF processing requires local storage for downloaded files
 - Citations, references, and related works data comes from OpenAlex
-- Not all papers may be available for download (depends on open access status)
+- Not all papers may be available for download (depends on open access status and whether there is a direct pdf link)

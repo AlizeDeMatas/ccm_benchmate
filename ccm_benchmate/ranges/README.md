@@ -173,6 +173,7 @@ for chrom in gdict:
 ## Notes
 
 - All intervals are 1-based and inclusive.
+- There is no check for chromosome lengths; we assume that you know how big your chromosomes are. 
 - Coverage arrays start at the minimum start and end at the maximum end for each chromosome (and strand, if applicable).
 - For large datasets, consider memory usage when using coverage methods.
 
