@@ -33,7 +33,7 @@ genome = Genome(
 The module supports querying different types of genomic features:
 
 ```python
-from ccm_demo.ranges.genomicranges import GenomicRange
+from ccm_benchmate.ranges.genomicranges import GenomicRange
 
 # Query genes by ID
 genes = genome.genes(ids=["ENSG00000139618"])

@@ -6,23 +6,81 @@ from io import StringIO
 
 import pandas as pd
 from Bio.PDB import *
+import rdkit
 
 parser = PDBParser(PERMISSIVE=1)
 
 from ccm_benchmate.binders.utils import *
+
+# You can provide structure or sequence instance
+from ccm_benchmate.sequence.sequence import Sequence
+from ccm_benchmate.structure.structure import Structure
 from ccm_benchmate.container_runner.container_runner import ContainerRunner
 
 from usearch_molecules.dataset import FingerprintedDataset, shape_ecfp4, shape_fcfp4, shape_maccs
 
 
-class MoleculeBinder:
-    def __init__(self, pdb):
+class Ligand:
+    def __init__(self, name, target=None, bound_structure=None):
+        self.name=name
+        self.target=target
+        self.bound_structure=bound_structure
+
+        #the binder needs to be one of these, they can be generated using the contructors of each class
+        if type(target) is Structure:
+            pass
+        elif type(target) is Sequence:
+            pass
+        else:
+            raise NotImplementedError("The target can only be a Sequence or Structure class instance")
+
+    #TODO this will use the bound_structure
+    def find_contacts(self):
+        pass
+
+    #TODO same as above
+    def bounding_box(self, use="target", amino_acids=None, use_alpha_carbon=False):
         """
-        the structure needed for the molecule binder
-        :param apis: a Protein object, we need a structure, if the apis does not have a pdb file we can
-        either use the structure module to predict one or download from pdb doesn't matter
+        generate a bounding box around a given list of amino acid ids. This can be used to generate more molecules or
+        calculate properties of a pocket
+        :param use: target or bound structure, this needs to be a Structure instance
+        :param amino_acids: which amino acids to use
+        :param use_alpha_carbon: whether to use the alpha carbon or the side chains to get the bounding box
+        :return: 6 coordinates of the bounding box
         """
-        self.pdb = pdb
+
+        if use=="target" and type(self.target) is Structure:
+            structure = self.target
+        elif use=="bound" and type(self.bound_structure) is Structure:
+            structure = self.bound_structure
+        else:
+            raise NotImplementedError("The target can only be a Structure class instance whether bound or apo structure")
+
+        coord = []
+
+        for model in structure:
+            for chain in model:
+                for residue in chain:
+                    if amino_acids is None or residue.resname in amino_acids:
+                        for atom in residue:
+                            if use_alpha_carbon:
+                                if atom.name == "CA":
+                                    coord.append(atom.coord)
+                            else:
+                                coord.append(atom.coord)
+
+        coord_numpy = np.array(coord)
+
+        x_max, y_max, z_max = np.max(coord_numpy, axis=0)
+        x_min, y_min, z_min = np.min(coord_numpy, axis=0)
+
+        return {"xmax": x_max, "ymax": y_max, "zmax": z_max, "xmin": x_min, "ymin": y_min, "zmin": z_min}
+
+
+class SmallMolecule(Ligand):
+    def __init__(self, name, smiles=None, target=None, bound_structure=None):
+        super().__init__(name, target, bound_structure)
+        self.smiles = smiles
 
     def find_pockets(self, **kwargs):
         """
@@ -45,77 +103,16 @@ class MoleculeBinder:
             pocket_coords = [get_pocket_dimensions(item) for item in pocket_list]
             return pocket_list, pocket_properties, pocket_coords
 
-    # TODO implement fixed from KOBE
-    def get_coord_cuboid(pdb_file, amino_acids=None, use_alpha_carbon=False):
+    def calculate_properties(self):
+        pass
 
+    def generate(self, container, **kwargs):
+        #use target structure
+        pass
+
+    def search(self, library, using="ecfp4", metric="tanimoto", n=100):
         """
-        Compute the coordinates of the 3D bounding cuboid for a set of amino acids in a PDB file
-
-        Parameters:
-        pdb_file: str
-            Path to pdb file to be analyzed.
-
-        amino_acids: list[str], optional, default=None
-            List of amino acid residue names (3-letter codes, e.g, "ALA", "GLY") to be analyzed.
-            If None, all residues are analyzed.
-
-        use_alpha_carbon: boolean, default=False
-            Whether to use only alpha carbons (Cα) for computing the bounding cuboid.
-            If False, all atoms in the residue will be used.
-
-        Output:
-        Coordinates of the cuboid:
-        -Xmax, Ymax, Zmax: float
-        -Xmin, Ymin, Zmin: float
-
-        Example:
-        get_coord_cuboid("example.pdb", amino_acids=["ALA", "GLY"], use_alpha_carbon = True)
-        """
-
-        structure = parser.get_structure("apis", pdb_file)
-        coord = []
-
-        for model in structure:
-            for chain in model:
-                for residue in chain:
-                    if amino_acids is None or residue.resname in amino_acids:
-                        for atom in residue:
-                            if use_alpha_carbon:
-                                if atom.name == "CA":
-                                    coord.append(atom.coord)
-                            else:
-                                coord.append(atom.coord)
-
-        coord_numpy = np.array(coord)
-
-        x_max, y_max, z_max = np.max(coord_numpy, axis=0)
-        x_min, y_min, z_min = np.min(coord_numpy, axis=0)
-
-        return {"xmax": x_max, "ymax": y_max, "zmax": z_max, "xmin": x_min, "ymin": y_min, "zmin": z_min}
-
-    def generate_molecules(self, container, pocket, fpath, outdir, box_size=None, numsamples=10, max_steps=50):
-        """
-        this runs pocket2mol for a give pocket and generated n molecules. The pockets can be de
-        :param pocket:
-        :param n:
-        :return:
-        """
-        command_dict = generate_yaml(fpath, config=config, numsamples=numsamples, max_steps=max_steps)
-        command_dict["bind_mounts"][0]["local"] = os.path.abspath("../containers/pocket2mol/Pocket2Mol")
-        command_dict["bind_mounts"][1]["local"] = os.path.abspath(fpath)
-        command_dict["bind_mounts"][2]["local"] = os.path.abspath(outdir)
-        if box_size is None:
-            box_size = "23"
-        command_dict["run_command"] = command_dict["run_command"].format(center=pocket, size=box_size,
-                                                                         config="{}/config.yaml".format(fpath),
-                                                                         outdir=outdir)
-        runner = ContainerRunner(container, command_dict)
-        runner.run()
-        return runner
-
-    def search_molecules(self, smiles, library, using="ecfp4", metric="tanimoto", n=100):
-        """
-        using useard molecules will search library for a given metric, the only metric implemented is tanimoto similarity
+        using usearch molecules will search library for a given metric, the only metric implemented is tanimoto similarity
         :param library: a list of directories that contain usearch parquet files
         :param using: the implemented ones are ecfp4, fcfp4 and maccs
         :param metric: tanimoto otherwise NotImplementedError
@@ -135,8 +132,17 @@ class MoleculeBinder:
             shape = shape_maccs
 
         data = FingerprintedDataset(library, shape=shape)
-        results = data.search(smiles=smiles, n)
+        results = data.search(smiles=self.smiles, n=n)
         return results
+
+    #run a model like AF3 or boltz to "verify" the bound structure
+    def verify(self, container, **kwargs):
+        pass
+
+    def generate_molecules(self, container, **kwargs):
+        #TODO this will be a containerRunner
+        pass
+
 
     def calculate_properties(self, *args):
         """
@@ -156,11 +162,9 @@ class MoleculeBinder:
         pass
 
 
-class PeptideBinder:
-    def __init__(self, protein, region):
-        self.protein = protein
-        if region is not None:
-            self.region = region
+class PeptideBinder(Ligand):
+    def __init__(self):
+        pass
 
     def find_binding_site(self):
         """

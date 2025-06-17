@@ -1,3 +1,7 @@
+<div style="text-align: center;">
+    <img src="./assets/contributing.jpeg" width="500" alt="CCM Benchmate logo" class="center">
+</div>
+
 # Contributing
 
 We are so glad that you want to contribute to our project! Here are some guidelines to help you get started:
