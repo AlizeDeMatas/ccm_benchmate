@@ -13,11 +13,13 @@ class BioGrid:
         :param access_key: you can get one from https://webservice.thebiogrid.org/
         """
         self.access_key = access_key
-        self.evidence_types = self._get_evidence_types()
-        self.organisms=self._get_organisms()
-        self.id_types=self._get_supported_identifiers()
+        self.header = {"Content-Type": "application/json"}
+        self.evidence_types = self._get_evidence_types(header=self.header)
+        self.organisms=self._get_organisms(header=self.header)
+        self.id_types=self._get_supported_identifiers(header=self.header)
 
-    def interactions(self, gene_list, id_types=None, evidence_types=None):
+
+    def interactions(self, gene_list, evidence_types=None, organism=None):
         """
         Get the interactions for the given gene list.
         :param gene_list: list of genes
@@ -25,17 +27,28 @@ class BioGrid:
         :param evidence_types: see self.evidence_types
         :return: a pandas dataframe with the interactions and kinds of evidences that support them
         """
-        params= {
-            "geneList": "|".join(gene_list),
-            "additionalIdentifierTypes": "|".join(id_types),
-            "evidenceList": "|".join(evidence_types),
-            "accessKey": self.access_key
-        }
-        if evidence_types is not None:
-            params["includeEvidence"]=True
 
-        url = f"https://webservice.thebiogrid.org/interactions?{params}"
-        response = requests.get(url)
+        url = f"https://webservice.thebiogrid.org/interactions?searcNames=true&geneList{'|'.join(gene_list)}"
+        if evidence_types is not None:
+            url += f"&evidenceList={'|'.join(evidence_types)}"
+
+        requested_organism=organism
+        if requested_organism is not None:
+            if requested_organism not in self.organisms.keys():
+                if requested_organism not in self.organisms.valuse():
+                    raise ValueError(f"Organism {requested_organism} not supported.")
+                else:
+                    for key in self.requested_organism.keys:
+                        if self.organisms[key] == requested_organism:
+                            organism = key
+            else:
+                requested_organism = organism
+
+        url += f"&requestedOrganism={requested_organism}"
+
+        url=f"{url}&format=json&accesskey={self.access_key}"
+
+        response = requests.get(url, headers=self.header)
         if response.status_code == 200:
             data = response.json()
             results=[]
@@ -46,37 +59,37 @@ class BioGrid:
         else:
             raise Exception(f"Error: {response.status_code} - {response.text}")
 
-    def _get_evidence_types(self):
+    def _get_evidence_types(self, header):
         """
         Get the evidence types from BioGrid.
         :return: A list of evidence types.
         """
-        url = f"https://webservice.thebiogrid.org/evidenceTypes?accessKey={self.access_key}"
-        response = requests.get(url)
+        url = f"https://webservice.thebiogrid.org/evidence/?accessKey={self.access_key}&format=json"
+        response = requests.get(url, headers=header)
         if response.status_code == 200:
             return response.content.decode().split("\n")
         else:
             raise Exception(f"Error: {response.status_code} - {response.text}")
 
-    def _get_organisms(self):
+    def _get_organisms(self, header):
         """
         Get the organisms from BioGrid.
         :return: A list of organisms.
         """
-        url = f"https://webservice.thebiogrid.org/organisms?accessKey={self.access_key}"
-        response = requests.get(url)
+        url = f"https://webservice.thebiogrid.org/organisms/?accessKey={self.access_key}&format=json"
+        response = requests.get(url, headers=header)
         if response.status_code == 200:
             return response.content.decode().split("\n")
         else:
             raise Exception(f"Error: {response.status_code} - {response.text}")
 
-    def _get_supported_identifiers(self):
+    def _get_supported_identifiers(self, header):
         """
         Get the supported identifiers from BioGrid.
         :return: A list of supported identifiers.
         """
-        url = f"https://webservice.thebiogrid.org/supportedIdentifiers?accessKey={self.access_key}"
-        response = requests.get(url)
+        url = f"https://webservice.thebiogrid.org/identifiers/?accesskey={self.access_key}&format=json"
+        response = requests.get(url, headers=header)
         if response.status_code == 200:
             return response.content.decode().split("\n")
         else:
@@ -89,14 +102,14 @@ class IntAct:
         self.page = page
         self.page_size = page_size
 
-    def _search(self, ebi_id):
+    def _search(self, ebi_id, page):
         """
         Search for interactions in IntAct database.
         :param ebi_id: The EBI ID to search for.
         :return: A list of interactions.
         """
 
-        intact_response = requests.get(self.url.format(ebi_id, self.page, self.page_size))
+        intact_response = requests.get(self.url.format(ebi_id, page, self.page_size))
         intact_response.raise_for_status()
         intact_response = json.loads(intact_response.content.decode())
         interactions = []
@@ -117,11 +130,11 @@ class IntAct:
 
         return interactions, last_page
 
-    def intact_search(self, ebi_id, page=0, page_size=1000):
-        interactions, last_page = self._search(ebi_id, page, page_size)
+    def intact_search(self, ebi_id, page=0):
+        interactions, last_page = self._search(ebi_id, page)
         while not last_page:
             page = page + 1
-            next_page_interactions, last_page = self._search(ebi_id, page=page, page_size=page_size)
+            next_page_interactions, last_page = self._search(ebi_id, page)
             interactions.extend(next_page_interactions)
         interactions = pd.DataFrame(interactions)
         return interactions
