@@ -90,7 +90,7 @@ def process_pdf(pdf, lp_model=paper_processing_config["lp_model"], interpret_fig
         pix = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
         layout = lp_model.detect(pix)
         figure_blocks = lp.Layout([b for b in layout if b.type == 'Figure'])
-        table_blocks = lp.Layout([b for b in layout if b.type == 'Figure'])
+        table_blocks = lp.Layout([b for b in layout if b.type == 'Table'])
         if len(figure_blocks) > 0:
             for block in figure_blocks:
                 coords = block.block

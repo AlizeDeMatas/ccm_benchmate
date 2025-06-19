@@ -126,18 +126,26 @@ class Paper:
         file_paths=os.path.abspath(os.path.join("{}/{}.pdf".format(destination, self.id)))
         return file_paths
 
-    def process(self):
+    def process(self, file_path):
         """
         see utils.py for details
         :return:
         """
-        article_text, figures, tables, figure_interpretation, table_interpretation = process_pdf(self.file_path)
+        article_text, figures, tables, figure_interpretation, table_interpretation = process_pdf(file_path)
         self.text=article_text
         self.figures=figures
         self.tables=tables
         self.figure_interpretation=figure_interpretation
         self.table_interpretation=table_interpretation
         return self
+
+    #TODO this will be used to embed figures and tables for knowledgebase
+    def embed_image(self, figure):
+        pass
+
+    #TODO this will do the semantic chunking and then create embeddings of your choice.
+    def embed_text(self, text):
+        pass
 
     def __str__(self):
         return self.paper_info["title"]
