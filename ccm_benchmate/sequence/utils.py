@@ -30,7 +30,7 @@ def esm3_embeddings(sequence, model, normalize=False, device="cuda"):
     return embeddings
 
 #TODO
-def esm2_embeddings(model, normalize=False):
+def hf_embeddings(model, normalize=False):
     pass
 
 

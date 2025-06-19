@@ -309,7 +309,7 @@ class Genome:
         :return:
         """
         transcripts_table = self.tables['transcript']
-        cds_table = self.tables['cds']
+
 
         query=sqlalchemy.select(transcripts_table.c.transcript_id)
         transcript_ids=self.session.execute(query).fetchall()
@@ -353,8 +353,65 @@ class Genome:
             seq = str(Seq.Seq(seq).reverse_complement())
         return seq
 
+    def add_annotation(self, table, row_id, annots):
+        """
+        add arbitrary annotations as a dictionary to a specific row in a specific table
+        :param table:
+        :param id:
+        :param annots:
+        :return:
+        """
+        if type(annots) != dict:
+            raise ValueError(f"Annotation type {type(annots)} not supported. They must be dictionaries")
+
+        if table=="gene":
+            table=self.tables['gene']
+        elif table=="transcript":
+            table=self.tables['transcript']
+        elif table=="exon":
+            table=self.tables['exon']
+        elif table=="cds":
+            table=self.tables['cds']
+        elif table=="three_utr":
+            table=self.tables['three_utr']
+        elif table=="five_utr":
+            table=self.tables['five_utr']
+        elif table=="intron":
+            table=self.tables['intron']
+        else:
+            raise ValueError(f"Table {table} is not a valid table.")
+
+        try:
+            row_id=int(row_id)
+        except:
+            raise ValueError(f"Row {row_id} is not a valid row id. It must be an integer")
+
+
+        id_check=sqlalchemy.select(table).where(table.c.id==id)
+        results=self.session.execute(id_check).fetchall()
+        if results is not None:
+            current_annots=sqlalchemy.select(table.c.annot).where(table.c.id==row_id).fetchall()
+            current_annots=current_annots[0]
+            if current_annots is None:
+                current_annots=annots
+            else:
+                for key, value in annots.items():
+                    if key not in current_annots:
+                        current_annots[key]=value
+                    else:
+                        raise ValueError(f"Annotation key {key} is already in database.")
+            try:
+                sqlalchemy.update(table.c.annot).where(table.c.id==row_id).values(current_annots)
+            except Exception as e:
+                print(f"There was an error in updating the annotations: {e}")
+        else:
+            raise ValueError("The id returned 0 row, please make sure that the id you provided is correct")
 
     def __str__(self):
         return f"Genome: for : {self.taxon_id}"
+
+    def __repr__(self):
+        return f"Genome: for : {self.taxon_id}"
+
 
 

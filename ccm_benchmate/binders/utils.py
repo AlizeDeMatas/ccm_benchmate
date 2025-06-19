@@ -3,6 +3,14 @@
 import numpy as np
 from Bio.PDB import PDBParser
 
+def to_smiles(rdkit_obj):
+    """
+    if you can read into rdkit we can convert it into smiles.
+    :param rdkit_obj:
+    :return:
+    """
+    pass
+
 
 def get_pocket_dimensions(pocket_path):
     """

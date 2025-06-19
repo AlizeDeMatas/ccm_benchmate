@@ -5,8 +5,8 @@ import requests
 
 # TODO this needs to be refactored so that id is not passed in the constructor or conver the whole thing to dataclasses
 class RnaCentral:
-    def __init__(self, id: str):
-        self.rna_central_api_url = "https://rnacentral.org/api/v1"
+    def __init__(self):
+        self.rna_central_api_url = "https://rnacentral.org/api/v1/rna"
         self.headers = {"Content-Type": "application/json"}
 
     def get_information(self, id: str, get_xrefs: bool = True, get_publications: bool = True):
@@ -15,9 +15,12 @@ class RnaCentral:
         :param id: The ID of the entry.
         :return: A dictionary containing information about the entry.
         """
-        url = f"{self.rna_central_api_url}/api/v1/accession/{id}/"
+        url = f"{self.rna_central_api_url}/{id}/"
         response = requests.get(url, headers=self.headers)
+        response.raise_for_status()
+
         if response.status_code == 200:
+            response = response.json()
             if get_xrefs:
                 xrefs_page = response["xrefs"]
                 xrefs=[]
@@ -29,10 +32,10 @@ class RnaCentral:
                 publications_page = response["publications"]
                 pubs = []
                 while publications_page is not None:
-                    page_pubs, publications_page = self._get_publications()
+                    page_pubs, publications_page = self._get_publications(publications_page)
                     pubs.append(page_pubs)
                 response["references"] = pd.concat(pubs)
-            return response.json()
+            return response
         else:
             raise Exception(f"Error: {response.status_code} - {response.text}")
 
@@ -42,7 +45,7 @@ class RnaCentral:
         :return: a dataframe containing cross-references information the modifications section will be a dict not just a string
         or a numeric type
         """
-        url = f"{self.rna_central_api_url}/{id}/xrefs/"
+        url=response["xrefs"]
         response = requests.get(url, headers=self.headers)
         if response.status_code == 200:
             response = response.json()
@@ -61,17 +64,16 @@ class RnaCentral:
         else:
             raise Exception(f"Error: {response.status_code} - {response.text}")
 
-    def _get_publications(self, response):
+    def _get_publications(self, url):
         """
         :return: a dataframe containing publication information
         """
-        url = response["publications"]
         response = requests.get(url, headers=self.headers)
         if response.status_code == 200:
             response = response.json()
-            response = response["results"]
+            papers = response["results"]
             data = []
-            for item in response:
+            for item in papers:
                 results = {"title": item["title"],
                            "publication": item["publication"],
                            "pmid": item["pubmed_id"],

@@ -16,6 +16,7 @@ class Genome(Base):
     genome_fasta_file = Column(String, nullable=True)
     transcriptome_fasta_file = Column(String, nullable=True)
     proteome_fasta_file = Column(String, nullable=True)
+    description=Column(String, nullable=True)
 
 class Chrom(Base):
     __tablename__ = 'chrom'
@@ -50,6 +51,7 @@ class Exon(Base):
     end = Column(Integer, nullable=False)
     exon_rank = Column(Integer, nullable=False)
     transcript=Column(Integer, ForeignKey('transcript.transcript_id', nullable=True))
+    annot = Column(JSON)
 
 class ThreeUTR(Base):
     __tablename__ = 'three_utr'
@@ -57,6 +59,7 @@ class ThreeUTR(Base):
     start = Column(Integer, nullable=False)
     end = Column(Integer, nullable=False)
     exon_id = Column(Integer, ForeignKey('exon.exon_id'), nullable=True)
+    annot = Column(JSON)
 
 class FiveUTR(Base):
     __tablename__ = 'five_utr'
@@ -64,6 +67,7 @@ class FiveUTR(Base):
     start = Column(Integer, nullable=False)
     end = Column(Integer, nullable=False)
     exon_id = Column(Integer, ForeignKey('exon.exon_id'), nullable=True)
+    annot = Column(JSON)
 
 class Cds(Base):
     __tablename__ = 'cds'
@@ -72,6 +76,7 @@ class Cds(Base):
     start = Column(Integer, nullable=False)
     end = Column(Integer, nullable=False)
     exon=Column(Integer, ForeignKey('exon.exon_id'), nullable=False)
+    annot = Column(JSON)
 
 class Introns(Base):
     __tablename__ = 'introns'
@@ -80,4 +85,5 @@ class Introns(Base):
     intron_rank = Column(Integer, nullable=False)
     start=Column(Integer)
     end=Column(Integer)
+    annot = Column(JSON)
 

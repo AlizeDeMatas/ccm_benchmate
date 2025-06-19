@@ -72,7 +72,7 @@ class Ensembl:
         :param species: species to search for
         :param variant: variant to search for, must be a Variant object
         :param tools: tools to use for the prediction, default is None which means we will just return basic information
-        :param check_exisits: check population frequencies from gnomad and 1kg
+        :param check_existing: check population frequencies from gnomad and 1kg
         :return: variant effect prediction a detailed dict
         """
         var_string=to_hgvs(variant)
@@ -132,7 +132,7 @@ class Ensembl:
         if sequence_type not in types:
             raise ValueError("sequence_type must be one of ['genomic', 'cds', 'protein', 'cdna']")
 
-        ext=f"{ext};type={sequence_type};multiple_sequences=1"
+        ext=f"{ext}?type={sequence_type};multiple_sequences=1"
         response = requests.get(f"{self.base_url}{ext}", headers=self.headers)
         response.raise_for_status()
         decoded = pd.DataFrame(response.json())
@@ -145,7 +145,7 @@ class Ensembl:
         :param id: ensembl id, because the ids also specify the species you do not need to specify the species
         :return: a dict of cross references these can be used to get the ids from other databases from other apis
         """
-        ext = f"/xrefs/id/{id}?;all_levels=1"
+        ext = f"/xrefs/id/{id}?all_levels=1"
         response = requests.get(f"{self.base_url}{ext}", headers=self.headers)
         response.raise_for_status()
         decoded=pd.DataFrame(response.json())
@@ -185,23 +185,28 @@ class Ensembl:
         """
         available_features= ["band", "gene", "transcript", "cds", "exon", "repeat", "simple", "misc", "variation", "somatic_variation",
                        "structural_variation", "somatic_structural_variation", "constrained", "regulatory", "motif", "mane"]
+        features_to_use=[]
         if features is None:
-            features=available_features
+            features_to_use=available_features
         else:
             for feature in features:
                 if feature not in available_features:
                     warnings.warn(f"Feature {feature} not available")
                     continue
                 else:
-                    features.append(feature)
+                    features_to_use.append(feature)
 
 
         if not isinstance(grange, GenomicRange):
             raise ValueError("grange must be a GenomicRange object")
 
-        initial_ext = f"/overlap/region/{species}/{grange.chrom}/{grange.start}-{grange.end}"
-        for feature in features:
-            ext = f"{initial_ext};feature={feature}"
+        initial_ext = f"/overlap/region/{species}/{grange.chrom}:{grange.ranges.start}-{grange.ranges.end}?"
+        for i in range(len(features_to_use)):
+            if i==0:
+                ext=initial_ext
+                ext=f"{ext}feature={features_to_use[i]}"
+            else:
+                ext=f"{ext};feature={features_to_use[i]}"
 
         response = requests.get(f"{self.base_url}{ext}", headers=self.headers)
         response.raise_for_status()
