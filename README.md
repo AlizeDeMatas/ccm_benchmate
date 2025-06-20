@@ -8,7 +8,11 @@ This package aims to provide an integration setup for different biological from 
  several modules that are designed to work together to allow researchers to combine data from public databases, papers 
 as well as their own data. 
 
-Each of the modules are designed to work independently from one another with few exceptions (see variant and ranges modules and how they are used in the apis and genome module). Each module has its own README file that provides usage instructions and how they can be integrated together. 
+To get started please see [installation instructions](INSTALLATION.md).
+
+Each of the modules are designed to work independently from one another with few exceptions (see variant and ranges modules 
+and how they are used in the apis and genome module). Each module has its own README file that provides usage instructions and 
+how they can be integrated together. 
 
 This package is a work in progress and is not yet ready for production use, that said, quite a few of the modules can be 
 used to get started, and they can be used to build custom pipelines for data integration. Below is a brief overview of the
@@ -113,7 +117,7 @@ All these operations are also supported in `GenomicRanges` instances as well. It
 ## Knowledge Base
 
 This module is designed to store the results of your searches and queries in a database. The goal is to provide a way to store the data that you have retrieved from the different modules in a structured way that allows you to query it later. The database schema
-is still under development. Currenlty we have schemas to store the paper classses, sequences, structures, variants and genomes. Due to semantic chunking and processing of the paper text there is a strict requiremen to use postgres as the database. This allows us
+is still under heavy development. Currenlty we have schemas to store the paper classses, sequences, structures, variants and genomes. Due to semantic chunking and processing of the paper text there is a strict requiremen to use postgres as the database. This allows us
 to offload a lot of the semantic searching via pgvector extension. Unfortunately this means that you will need to install pgvector extension on your postgres database. We will be providing instructions how to do that under the knowledge base module readme.
 
 One of the most ambitions goals of this module it to provide a natural language search capabilities to many different data modalities that are represented in by othe other modules. This means that you will be able to search for papers, sequences, 
@@ -149,7 +153,7 @@ queries to be scripted more easily.
 
 ### Contributing
 
-Please see CCM Benchmate [CONTRIBUTING.md](./CONTRIBUTING.md) for how to contribute to the package. We are always looking for help with writing tests, documentation, examples and more. 
+Please see CCM Benchmate [CONTRIBUTING.md](CONTRIBUTING.md) for how to contribute to the package. We are always looking for help with writing tests, documentation, examples and more. 
 If you have suggestions for features that you would like to see please create an issue on the GitHub repository and we will try to add them.
 
 #### Need your support
@@ -168,7 +172,7 @@ data sources and modalitites as possible.
 
 The best way to contact us is via github issues, you can create an issue about problems you are facing or features, datasets, containers you would like to have. 
 If you have container/code pipeline etc. That you think others could use, you can create a module for it and create a pull request or make changes to one of the existing modules. 
-Please see CONTRIBUTING.md for how to do that and basic reccomendations about our (very relaxed) code standards. 
+Please see [CONTRIBUTING.md](CONTRIBUTING.md) for how to do that and basic reccomendations about our (very relaxed) code standards. 
 
 
 

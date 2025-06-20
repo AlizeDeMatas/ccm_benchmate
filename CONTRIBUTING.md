@@ -27,7 +27,7 @@ this will create a blank git repository and you will be in the `main` branch.
 Better yet clone this repository using:
 
 ```bash
-git clone https://github.com/celalp/chirpp
+git clone https://github.com/ccmbioinfo/ccm_benchmate
 ```
 
 This branch is reserved for the "production" code and things will not be added here until they are tested and ready to
@@ -60,7 +60,7 @@ See below for more guidelines on branching, commit pushes and pull requests.
 You can configure your remote repository with:
 
 ```bash
-git remote add origin https://github.com/celalp/chirpp.git
+git remote add origin https://github.com/ccmbioinfo/ccm_benchmate
 ```
 
 and you can push using
@@ -231,8 +231,6 @@ If your code requires extensive parameters (it might for experimentation) you ca
 keep these values as a key:value store. Make sure that this file location is NOT hardcoded but rather passed as an
 argument in the callable script.
 
-
-
 ### Push guides
 
 As long as you are following the guidelines above you can push to your branches as much as you want. Github tracks
@@ -261,7 +259,7 @@ For each container please include a `README.md` file that describes how to build
 + How the container can be built (as simple as Dockerfile will be enough)
 + Which command(s) to use to run the container
 
-Avoid including complicated pipelines inside the container. It is possible to generate a piplien using a series of contianers
+Avoid including complicated pipelines inside the container. It is possible to generate a pipline using a series of contianers
 this will also make it easier to use/maintain and modularize. For simple things like running multiple QC metrics for an RNA-Seq
 pipeline you can use a single container that has all the dependencies installed.
 
