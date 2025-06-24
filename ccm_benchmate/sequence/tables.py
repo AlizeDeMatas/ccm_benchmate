@@ -1,10 +1,9 @@
 from sqlalchemy import (
     Column, ForeignKey, Integer, String, ARRAY, Float
 )
+from sqlalchemy.orm import declarative_base
 from sqlalchemy.dialects.postgresql import JSONB
-
-
-from ccm_benchmate.knowledge_base.tables import Base
+Base = declarative_base()
 
 class Sequence(Base):
     __tablename__ = 'sequence'

@@ -8,12 +8,10 @@ from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.orm import declarative_base
 
 from pgvector.sqlalchemy import Vector
-
-from ccm_benchmate.knowledge_base.tables import Base
-
 class TSVector(types.TypeDecorator):
     impl = TSVECTOR
 
+Base = declarative_base()
 
 class Papers(Base):
     __tablename__ = 'papers'
