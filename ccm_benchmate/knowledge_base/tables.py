@@ -8,6 +8,7 @@ from ccm_benchmate.structure.tables import *
 from ccm_benchmate.sequence.tables import *
 from ccm_benchmate.genome.tables import *
 from ccm_benchmate.apis.tables import *
+from ccm_benchmate.project.tables import *
 
 Base = declarative_base()
 
