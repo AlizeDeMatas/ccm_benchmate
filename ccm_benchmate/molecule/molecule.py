@@ -1,19 +1,17 @@
 
-
 from rdkit import Chem
+import numpy as np
 from usearch_molecules.dataset import FingerprintedDataset, shape_ecfp4, shape_fcfp4, shape_maccs
 
 from ccm_benchmate.structure.structure import Structure
 
-# Ideally there should be some methods to perform some sort of docking but this will need to be done via conatiner_runner so
-# this is not the place for it.
 
 class Molecule:
     """
     Molecule class to represent chemical structures using SMILES or InChI. this will include methods for different property
     calculations and structure comparisons using usearch molecules.
     """
-    def __init__(self, smiles=None, bound_structure=None):
+    def __init__(self, smiles=None, bound_structure=None, fingerprint_dim=2048, radius=2):
         """
         Initialize a Molecule object with a SMILES string.
         :param smiles: A SMILES or InChI representation of the molecule.
@@ -21,7 +19,35 @@ class Molecule:
         """
         self.smiles = smiles
         self.mol = Chem.MolFromSmiles(smiles)
-        self.bound_structure = bound_structure
+        if bound_structure is not None:
+            self.bound_structure = Structure(pdb=bound_structure)
+        else:
+            self.bound_structure=None
+        self.fingerprint_dim = fingerprint_dim
+        self.fingerprint_radius=radius
+        self.ecfp4 = self._fingerprint(type="ecfp4")
+        self.fcfp4 = self._fingerprint(type="fcfp4")
+        self.maccs = self._fingerprint(type="maccs")
+
+
+    def _fingerprint(self, type="ecfp4"):
+        if type == "ecfp4":
+            fpgen = Chem.rdFingerprintGenerator.GetMorganGenerator(radius=self.fingerprint_radius,
+                                                                   fpSize=self.fingerprint_dim,
+                                                                   atomInvariantsGenerator=Chem.rdFingerprintGenerator.GetMorganAtomInvGen())
+            fp = fpgen.GetFingerprint(self.mol)
+        elif type == "fcfp4":
+            fpgen=Chem.rdFingerprintGenerator.GetMorganGenerator(radius=self.fingerprint_radius,
+                fpSize=self.fingerprint_dim,
+                atomInvariantsGenerator=Chem.rdFingerprintGenerator.GetMorganFeatureAtomInvGen())
+            fp = fpgen.GetFingerprint(self.mol)
+        elif type == "maccs":
+            fp=Chem.MACCSkeys.GenMACCSKeys(self.mol)
+        else:
+            raise NotImplementedError("Only ecfp4, fcfp4 and maccs fingerprints are implemented")
+
+        return fp
+
 
     def search(self, library, n=10, metric="tanimoto", using="ecfp4"):
         """
@@ -49,37 +75,39 @@ class Molecule:
         return results
 
     def bounding_box(self, amino_acids=None, use_alpha_carbon=False):
-        """
-        generate a bounding box around a given list of amino acid ids. This can be used to generate more molecules or
-        calculate properties of a pocket
-        :param use: target or bound structure, this needs to be a Structure instance
-        :param amino_acids: which amino acids to use
-        :param use_alpha_carbon: whether to use the alpha carbon or the side chains to get the bounding box
-        :return: 6 coordinates of the bounding box
-        """
+            """
+            generate a bounding box around a given list of amino acid ids. This can be used to generate more molecules or
+            calculate properties of a pocket
+            :param use: target or bound structure, this needs to be a Structure instance
+            :param amino_acids: which amino acids to use
+            :param use_alpha_carbon: whether to use the alpha carbon or the side chains to get the bounding box
+            :return: 6 coordinates of the bounding box
+            """
 
-        if self.bound_sturcutre is None:
-            raise
+            if self.bound_sturcutre is None:
+                raise ValueError("bound_sturcutre must be set for bounding box calculation")
 
-        coord = []
+            coord = []
 
-        for model in structure:
-            for chain in model:
-                for residue in chain:
-                    if amino_acids is None or residue.resname in amino_acids:
-                        for atom in residue:
-                            if use_alpha_carbon:
-                                if atom.name == "CA":
+            for model in self.bound_structure:
+                for chain in model:
+                    for residue in chain:
+                        if amino_acids is None or residue.resname in amino_acids:
+                            for atom in residue:
+                                if use_alpha_carbon:
+                                    if atom.name == "CA":
+                                        coord.append(atom.coord)
+                                else:
                                     coord.append(atom.coord)
-                            else:
-                                coord.append(atom.coord)
 
-        coord_numpy = np.array(coord)
+            coord_numpy = np.array(coord)
 
-        x_max, y_max, z_max = np.max(coord_numpy, axis=0)
-        x_min, y_min, z_min = np.min(coord_numpy, axis=0)
+            x_max, y_max, z_max = np.max(coord_numpy, axis=0)
+            x_min, y_min, z_min = np.min(coord_numpy, axis=0)
 
-        return {"xmax": x_max, "ymax": y_max, "zmax": z_max, "xmin": x_min, "ymin": y_min, "zmin": z_min}
+            return {"xmax": x_max, "ymax": y_max, "zmax": z_max, "xmin": x_min, "ymin": y_min, "zmin": z_min}
+
+
 
     def __repr__(self):
         return f"Molecule(smiles={self.smiles}, InChI={self.InChI})"
@@ -88,8 +116,7 @@ class Molecule:
         return f"Molecule with SMILES: {self.smiles} and InChI: {self.InChI}"
 
 
-#not sure if this is neeeded, but it is a placeholder for now
-class LinandComplex:
-    pass
+
+
 
 
