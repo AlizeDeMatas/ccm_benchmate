@@ -1,6 +1,8 @@
 from sqlalchemy import (
-    Column, ForeignKey, Integer, String, ARRAY, Float
+    Column, ForeignKey, Integer, String,  Float
 )
+from pgvector.sqlalchemy import Vector
+
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.dialects.postgresql import JSONB
 Base = declarative_base()
@@ -13,7 +15,7 @@ class Sequence(Base):
     type = Column(String)
     msa_path=Column(String, nullable=True)
     blast_path=Column(String, nullable=True)
-    embeddings=ARRAY(Float)
+    embeddings=Column(Vector)
     features=Column(JSONB)
 
 class SequenceList(Base):

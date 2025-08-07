@@ -120,7 +120,7 @@ class Structure:
         PDBFile.write(self.pdb, fpath)
 
 
-class ProteinComplex(Structure):
+class Complex(Structure):
     def __init__(self, pdb=None, sequence=None):
         super().__init__(pdb=pdb, sequence=sequence)
         self.chains=get_chains(self.structure)

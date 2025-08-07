@@ -16,8 +16,6 @@ The apis marked with (WIP) are still under development and may not be fully func
 + stringdb
 + Intact
 + RNAcentral
-+ Rfam (WIP)
-+ GTEx (WIP)
 + EBI tools (requires testing)
 + BioGrid
 
@@ -92,26 +90,6 @@ isoforms = uniprot.get_isoforms("P38398")
 
 # Interactions
 interactions = uniprot.get_interactions("P38398")
-```
-
----
-
-## others.GTEX
-
-**Description:**  
-Client for the GTEx Portal API. Supports querying eQTL, sQTL, and iQTL associations for genes and tissues.
-
-**Usage Examples:**
-```python
-from ccm_benchmate.apis.others import GTEX
-
-gtex = GTEX()
-
-# Individual-level eQTLs
-ieqtl_results = gtex.ieqtl(gene="ENSG00000139618", tissue="Liver", dataset="GTEx_Analysis_v8_eQTL")
-
-# Individual-level sQTLs
-isqtl_results = gtex.isqtl(gene="ENSG00000139618", tissue="Liver", dataset="GTEx_Analysis_v8_sQTL")
 ```
 
 ---
@@ -217,6 +195,3 @@ network = stringdb.get_network("9606.ENSP00000354587")
 ```
 
 ---
-
-**Note:**  
-Replace example IDs and access keys with valid values. Refer to each class's docstrings for more details on available methods and parameters.

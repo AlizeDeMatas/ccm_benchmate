@@ -1,7 +1,7 @@
 import warnings
 
 import sqlalchemy
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import sessionmaker
 import pandas as pd
 
 from Bio import Seq, SeqIO
@@ -25,7 +25,7 @@ class Genome:
         :param taxon_id: taxon id of the genome
         """
         self.db=db_conn
-        self.session = Session(self.db)
+        self.session = sessionmaker(self.db)
         self.metadata = sqlalchemy.MetaData(self.db)
         self.metadata.reflect(bind=self.db)
         self.tables = self.metadata.tables

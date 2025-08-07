@@ -3,6 +3,9 @@ from sqlalchemy import Column, Integer, String, Float, JSON
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.dialects.postgresql import ARRAY
 
+from sqlalchemy.orm import declarative_base
+Base = declarative_base()
+
 class BaseVariant:
     """Abstract base class for all variant types."""
     @declared_attr
