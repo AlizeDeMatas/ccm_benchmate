@@ -36,7 +36,8 @@ class ApiCall(Base):
     __tablename__ = 'api_call'
     id = Column(Integer, primary_key=True, autoincrement=True)
     project_id = Column(Integer, ForeignKey('project.id'))
-    api_name = Column(String, nullable=False)
+    class_name = Column(String, nullable=False)
+    method_name = Column(String, nullable=False)
     params =Column(JSONB, nullable=False)
     results=Column(JSONB, index=True)
     query_time = Column(DateTime, nullable=False)
