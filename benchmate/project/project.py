@@ -17,7 +17,7 @@ class Project:
     """
     this is the metaclass for the whole thing, it will collect all the modules and will be main point for interacting with the knowledgebase
     """
-    def __init__(self, name, description, engine):
+    def __init__(self, name, description, email, biogrid_api_key, engine):
         """
         Main metaclass for consrcutor, if we are going to use any kind of agentic stuff the description is very important.
         The generatl description of the project can be used to determine
@@ -35,7 +35,7 @@ class Project:
         self.project_id=None
         self.description = description
         self.kb = KnowledgeBase(engine=engine)
-        self.apis = Apis()
+        self.apis = Apis(email, biogrid_api_key)
         self.literature = Literature()
         self.genome = None
         self.structures=[]
@@ -78,12 +78,12 @@ class Project:
                 add_genome(self, item.genome_fasta, item.gtf, item.name, item.description)
             elif isinstance(item, Sequence):
                 add_sequence(self, [item])
-            elif isinstance(item, Structure) or isinstance(item, Complex):
+            elif isinstance(item, Structure):
                 add_structures(self, [item])
             else:
                 raise NotImplementedError("Items must be of type Paper, ApiCall, Molecule, Sequence, Structure, Variant or Genome")
 
-    def from_kb(self, project_id, id, id_type):
+    def from_kb(self, id, id_type):
         """
         generate an instance of something from the database, this assumes you know what you are looking for, as it will
         the autoincremented id of the thing. See the search method to get the ids you need.

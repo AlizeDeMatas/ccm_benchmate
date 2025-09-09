@@ -3,19 +3,24 @@ import io
 
 from sqlalchemy import select, insert
 from PIL import Image
+import torch
 
 from benchmate.apis.utils import ApiCall, Apis
 from benchmate.genome.genome import Genome
-from benchmate.literature.literature import Paper, LitSearch, PaperInfo
+from benchmate.literature.literature import Paper, PaperInfo, LitSearch
 from benchmate.molecule.molecule import Molecule
 
 #TODO add and get
-from benchmate.sequence.sequence import Sequence, SequenceList, SequenceDict
-from benchmate.structure.structure import Structure, Complex
+from benchmate.sequence.sequence import Sequence
+from benchmate.structure.structure import Structure
 
 
 class ProjectNameError(Exception):
     pass
+
+
+#TODO
+# check if a thing is already in the db, check if identical if so raise a warning and do nothing.
 
 def add_papers(project, papers: List[Paper]):
     """This will add a list of paper class instances and if not a paper class instance or does not have a paperinfo dataclass will raise an error"""
@@ -225,6 +230,8 @@ def add_sequence(project, sequences):
         project.kb.session().execute(seq_stms)
         project.kb.session().commit()
 
+
+
 def get_paper(description, papers):
     pass
 
@@ -249,6 +256,43 @@ def keyword_search():
 def figure_search():
     pass
 
+def symmetric_score(sim):
+    """
+    get symetric score for a similarity matrix of a given text and project description
+    :param sim: pairwise similarlty matrix of semantic chunks
+    :return: float, symmetric score of mean max similarities
+    """
+    # Mean of max similarities from rows (text1 to other)
+    mean_max_row = torch.max(sim, dim=1).values.mean().item()
+    # Mean of max similarities from columns (other to text1)
+    mean_max_col = torch.max(sim, dim=0).values.mean().item()
+    # Symmetric score
+    return (mean_max_row + mean_max_col) / 2
 
+#TODO this might need to move to project instance because this can be used for other things like uniport description or other
+# free text that is in the other api calls.
+def text_score(project_description, paper_abstracts, chunker=chunker, embedding_model=embedding_model):
+    """
+    calculate a relevance score between a project description and a paper abstract, this is done by comparing
+    each semantic chunk of the project description to each semantic chunk of each abstract. for an m desccirption chunks
+    and n abstracts chunks we get an m x n matrix of cosine similarities. the final score is calculated taking some measure (max)
+    for each row and then comparing the resulting vector of lenght n to all the other comparisions.
+    :param project_description: string
+    :param paper_abstract: list of strings
+    :param chunker: SemanticChunker instance
+    :param embedding_model: a model to generate embeddings
+    :return: list of floats one for each abstract in the same order as the input list
+    """
+    project_description_chunks, project_description_embeddings = text_embeddings(project_description, chunker=chunker,
+                                                                                 splitting_strategy="semantic")
+    paper_scores = []
+    for paper_abstract in paper_abstracts:
+        abstract_chunks, abstract_embeddings = text_embeddings(paper_abstract, chunker=chunker,
+                                                              splitting_strategy="semantic")
+        sim=embedding_model.similarity(project_description_embeddings, abstract_embeddings)
+        score=symmetric_score(sim)
+        paper_scores.append(score)
+
+    return paper_scores
 
 
