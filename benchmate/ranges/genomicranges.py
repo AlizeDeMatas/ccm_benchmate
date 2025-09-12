@@ -1,5 +1,5 @@
 
-from benchmate.ranges.ranges import Range, RangesList
+from benchmate.ranges.ranges import Range, RangesList, RangesDict
 
 
 class GenomicRange:
@@ -236,6 +236,7 @@ class GenomicRangesList:
         else:
             return True
 
+    #TODO  this is not correct and should return a rangesdict per chrom and chrom/strand
     def reduce(self, ignore_strand=False):
         ranges = {}
         for item in self.items:

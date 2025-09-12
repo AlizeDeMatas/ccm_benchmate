@@ -48,7 +48,7 @@ class Range:
 
     def distance(self, other):
         assert(isinstance(other, Range))
-        if self.overlaps(other):
+        if self.overlaps(other, type="any"):
             return 0
         else:
             return min(abs(self.start - other.start), abs(self.end - other.end),
@@ -102,10 +102,11 @@ class Range:
 
 
 class RangesList:
-    def __init__(self, granges):
-        for item in granges:
+    def __init__(self, ranges):
+        assert(isinstance(ranges, list))
+        for item in ranges:
             assert (isinstance(item, Range))
-        self.items = granges
+        self.items = ranges
 
     def pop(self, index):
         assert(isinstance(index, int))

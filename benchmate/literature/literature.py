@@ -121,6 +121,7 @@ class PaperInfo:
     figure_interpretation_embeddings: Optional[np.ndarray] = None
     table_interpretation_embeddings: Optional[np.ndarray] = None
     download_link: str = None
+    downloaded: bool = False
     pathname: str = None
     openalex_info: Optional[dict] = None
     references: Optional[list] = None
@@ -146,7 +147,7 @@ class Paper:
         self.info.abstract, self.info.title, self.info.authors= self.get_abstract()
 
         if search_info:
-            self.info.openalex_info, self.info.download_link = self.search_info()
+           self.search_info()
 
         if download and self.info.download_link is not None:
             try:
@@ -176,12 +177,13 @@ class Paper:
             authors=[]
             for author in author_tags:
                 affiliation_info=author.find("AffiliationInfo")
-                if len(affiliation_info.find_all("Affiliation"))>0:
-                    authors.append({"name":(author.find("ForeName").text + ", " + author.find("LastName").text),
-                                "affiliation":(author.find("AffiliationInfo").find("Affiliation").text)})
-                else:
-                    authors.append({"name": (author.find("ForeName").text + ", " + author.find("LastName").text),
-                                    "affiliation": None})
+                if affiliation_info is not None:
+                    if len(affiliation_info.find_all("Affiliation"))>0:
+                        authors.append({"name":(author.find("ForeName").text + ", " + author.find("LastName").text),
+                                    "affiliation":(author.find("AffiliationInfo").find("Affiliation").text)})
+                    else:
+                        authors.append({"name": (author.find("ForeName").text + ", " + author.find("LastName").text),
+                                        "affiliation": None})
 
         elif self.info.id_type == "arxiv":
             response = requests.get("http://export.arxiv.org/api/query?search_query=id:{}".format(self.info.id))
@@ -224,7 +226,7 @@ class Paper:
                 download_link = None
 
         self.info.openalex_info=openalex_info
-        self.info.download_link=openalex_info
+        self.info.download_link=download_link
         return None
 
     def download(self, destination):
@@ -289,7 +291,7 @@ class Paper:
             try:
                 p=paper_from_link(reference)
                 papers.append(p)
-                time.sleep(0.1)
+                time.sleep(0.3)
             except:
                 print("Could not find a paper with id {}".format(reference.split("/").pop()))
 
@@ -305,7 +307,7 @@ class Paper:
             try:
                 p = paper_from_link(reference)
                 papers.append(p)
-                time.sleep(0.1)
+                time.sleep(0.3)
             except:
                 print("Could not find a paper with id {}".format(reference.split("/").pop()))
         self.info.related_works=papers
@@ -319,18 +321,22 @@ class Paper:
         content = json.loads(content)
         next_cursor = content["meta"]["next_cursor"]
         papers = []
-        for item in content["results"] and len(content["results"])>0:
-            try:
-                p = paper_from_response(item)
-                papers.append(p)
-                time.sleep(0.1)
-            except:
-                print("Could not find a paper with id {}".format())
-            finally:
-                cursor=next_cursor
-        while next_cursor != cursor and next_cursor is not None:
-            self.get_cited_by(next_cursor)
-        self.info.cited_by=papers
+        if len(content["results"]) > 0:
+            for item in content["results"]:
+                try:
+                    p = paper_from_response(item)
+                    papers.append(p)
+                    time.sleep(0.3)
+                except:
+                    print("Could not find a paper with id {}".format(item["ids"]["pmid"].split("/").pop()))
+                finally:
+                    cursor=next_cursor
+            while next_cursor != cursor and next_cursor is not None:
+                self.get_cited_by(next_cursor)
+            self.info.cited_by=papers
+        else:
+            warnings.warn("No papers found that cite this work")
+            self.info.cited_by=[]
         return None
 
     def __str__(self):

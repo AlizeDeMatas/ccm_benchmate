@@ -3,7 +3,8 @@ from setuptools import setup, find_packages
 setup(
     name='benchmate',
     version='0.1.0',
-    description="Python package for demonstrating simple proteomics integrations and one liners",
+    description="A data aggregation tool for omic data including literature search and accessing public databases",
+    url='ccmbioinfo.github.io/benchmate',
     author='Alper Celik',
     author_email='alper.celik@sickkids.ca',
     packages=find_packages(),
