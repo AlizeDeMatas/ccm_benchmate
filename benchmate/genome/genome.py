@@ -8,13 +8,14 @@ from Bio import Seq, SeqIO
 import pysam
 
 from benchmate.knowledge_base.tables import *
+from benchmate.genome.tables import *
 from benchmate.genome.utils import insert_genome
 from benchmate.ranges.genomicranges import *
 
 #TODO the genome class currently is not compatible with kb
 class Genome:
     def __init__(self, genome_fasta, gtf, name, description, db_conn,
-                 transcriptome_fasta=None,
+                 transcriptome_fasta=None, standalone=False,
                  proteome_fasta=None, create=True,):
         """
         :param gtf_path: Path to the GTF file
@@ -46,13 +47,17 @@ class Genome:
             self.proteome_fasta=None
 
         if create:
-            if len(self.tables)==0:
+            if len(self.tables) == 0:
                 print("There are no tables in the database, creating tables and adding genome information")
-                Base.metadata.create_all(self.db)
-                self.metadata.reflect(bind=self.db)
-                genome_id, chrom_ids = insert_genome(gtf=gtf, engine=self.db, name=self.name, description=self.description,
-                                                 genome_fasta=genome_fasta, transcriptome_fasta=transcriptome_fasta, proteome_fasta=proteome_fasta,
-                                                 )
+                if standalone:
+                    StandAloneBase.create_all(self.db)
+                else:
+                    Base.metadata.create_all(self.db)
+
+            self.metadata.reflect(bind=self.db)
+            genome_id, chrom_ids = insert_genome(gtf=gtf, engine=self.db, name=self.name, description=self.description,
+                                             genome_fasta=genome_fasta, transcriptome_fasta=transcriptome_fasta, proteome_fasta=proteome_fasta,
+                                             )
         else:
             genome_id = pd.read_sql(
                 f"select genome.id from genome where genome.genome_name='{self.name}'",
