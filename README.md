@@ -2,6 +2,17 @@
     <img src="./assets/benchmate.png" width="900" alt="CCM Benchmate logo" class="center">
 </div>
 
+<p align="center">
+    <a href="https://shields.io/community#backers" alt="Activity">
+        <img src="https://img.shields.io/github/commit-activity/m/ccmbioinfo/ccm_benchmate" /></a>
+    <a href="https://shields.io/community#backers" alt="stars">
+        <img src="https://img.shields.io/github/stars/ccmbioinfo/ccm_benchmate" /></a>
+    <a href="https://shields.io/community#backers" alt="Docs">
+        <img src="https://img.shields.io/github/issues/ccmbioinfo/ccm_benchmate" /></a>
+    <a href="https://ccmbioinfo.github.io/ccm_benchmate/">
+        <img alt="Documentation" src="https://img.shields.io/website?url=https%3A%2F%2Fccmbioinfo.github.io%2Fccm_benchmate%2F&label=Documentation"></a>
+</p>
+
 # CCM Benchmate package:
 
 This package aims to provide an integration setup for different biological from different sources and formats. There are

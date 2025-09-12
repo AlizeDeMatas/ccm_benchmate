@@ -14,3 +14,5 @@ notebooks
 *.whl
 projects
 build
+*.env
+notebooks
