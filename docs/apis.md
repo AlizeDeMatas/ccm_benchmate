@@ -208,15 +208,14 @@ dict_keys(['id', 'name', 'sequence', 'organism', 'gene', 'feature_types', 'comme
 'json', 'secondary_accessions', 'variation', 'interactions', 'mutagenesis', 'isoforms'])
 ```
 
-You can see what kinds of features are availble for a given protein using `get_features` method or you can you `get_comments` method to see other kinds of annotations that are more about the whole protein. 
+You can see what kinds of features are availble for a given protein using `get_features` method or you can you `get_comments` method to see other kinds of annotations that are more about the whole protein.
 
 ```python
 results["comment_types"]
 results["feature_types"]
 
-
 uniprot.get_features(results["json"], "SIGNAL")
-uniprot.get_comments(results["json"], "DISEASE")
+uniprot._get_comments(results["json"], "DISEASE")
 ```
 
 ---

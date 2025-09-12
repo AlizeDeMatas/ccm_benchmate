@@ -2,15 +2,14 @@ import os
 import subprocess
 from dataclasses import dataclass
 from io import StringIO
-from typing import List, Dict, Optional
+from typing import List
 
-import requests
 import torch
 import pandas as pd
 
-from biotite.structure import sasa, distance, to_sequence, get_chains
+from biotite.structure import distance, get_chains
 from biotite.structure.io.pdb import PDBFile
-from biotite.structure.alphabet import to_3di
+
 
 from benchmate.structure.utils import *
 
@@ -19,7 +18,6 @@ class StructureInfo:
     name: str
     pdb: str
     chains: List[str] = None
-    seq_3di: Optional[str] = None
 
 #TODO extract names of things that map to each chain, extract name of the sequence or id or some other metadata.
 class Structure:
@@ -40,11 +38,7 @@ class Structure:
 
         self.info = StructureInfo(name=name, pdb=pdb)
         self.info.sasa = self.calculate_sasa()
-        if calculate_embeddings:
-            self.info.embeddings=self.calculate_embeddings()
-        else:
-            self.info.embeddings = None
-        self.info.seq_3di = self.get_3di()
+
         self.info.chains = get_chains(self.structure)
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -88,6 +82,9 @@ class Structure:
     #TODO
     def tm_score(self, other):
         pass
+
+    def _get_chain(self, chain_id):
+        return self.structure[self.structure.chain_id == chain_id]
 
     def write(self, fpath):
         PDBFile.write(self.pdb, fpath)

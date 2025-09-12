@@ -27,13 +27,13 @@ engine = create_engine('postgresql+psycopg2://user:password@hostname/database_na
 my_project = Project(name="My Project", description="My Project Description", engine=engine)
 ```
 
-Your project description is important for many of the projects search and retieve functions. The project uses this document
+Your project description is important for many of the projects search and retrieve functions. The project uses this document
 to find and compare relevant results such as relevant papers or other api call results based on the free text description of 
 elements that are returned from the api in some instances. This document ideally should be a one page executive summary of what
 the project is about and what are the main goals. It also might be helpful to include a list of methodolgies (like wet-lab experiments)
 that are planned to be used in the project as well as things that are not relevant. For example if you are interested in how
-oxidative stress affects the gene expression in a certain cell type you probably do not want to get any papers about how 
-oxidative stress affect photosynthesis in rain forests. 
+oxidative stress affects the gene expression in cancer you probably do not want to get any papers about how 
+oxidative stress affects photosynthesis in rainforests. 
 
 All the previous modules get initialized when the project is created. 
 

@@ -44,11 +44,10 @@ class Sequence:
         self.info=SequenceInfo(name=name, sequence=sequence, type=type, features=features)
         self.device="cuda" if torch.cuda.is_available() else "cpu"
 
-    #TODO need to be able to also do a DNA/RNA embedding
     def embeddings(self, model="esmc_300m", normalize=False):
         if model == "esmc_300m" or model == "esmc_g00m":
-            embeddings=esm3_embeddings(sequence=self.info.sequence, model=model,
-                                       normalize=normalize, device=self.device)
+            embeddings= get_embeddings(sequence=self.info.sequence, model=model,
+                                        normalize=normalize, device=self.device)
         else:
             raise NotImplementedError("That model is not implemented.")
         self.info.embeddings=embeddings
