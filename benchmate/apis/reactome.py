@@ -1,5 +1,6 @@
 import warnings
 import requests
+from benchmate.apis.utils import api_call
 
 # thin wrapper around the api this does comprehensive queries of the knowledge base, does not perform analysis
 class Reactome:
@@ -23,7 +24,8 @@ class Reactome:
         self.fields=fields
         self.headers={"Content-Type": "application/json"}
 
-    def query(self, query, species=None, compartments=None, keywords=None, types=None, start=0, num_rows=1000,
+    @api_call
+    def search(self, query, species=None, compartments=None, keywords=None, types=None, start=0, num_rows=1000,
               cluster=True, force_filters=True):
         """
         general query that return specific reactome ids for different types
@@ -71,6 +73,7 @@ class Reactome:
             modified_response[item["typeName"]]=item["entries"]
         return modified_response
 
+    @api_call
     def get_details(self, id):
         """
         get detailed information about a reactome entry, you need the reacotme id

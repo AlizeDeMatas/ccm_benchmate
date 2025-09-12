@@ -1,7 +1,7 @@
 import requests
 from Bio import Entrez
 from bs4 import BeautifulSoup as bs
-
+from benchmate.apis.utils import api_call
 
 # thin wrapper around the NCBI Entrez API and BioPython
 class Ncbi:
@@ -34,7 +34,7 @@ class Ncbi:
                 info=self.get_db_info(db)["FieldList"]
                 descriptions[db]=info[["FullName", "Description"]]
 
-
+    @api_call
     def search(self, db, query, retmax=100):
         """
         thin wrapper around the NCBI Entrez esearch
@@ -49,6 +49,7 @@ class Ncbi:
         ids = record["IdList"]
         return ids
 
+    @api_call
     def summary(self, db, id):
         """
         thin wrapper around the NCBI Entrez esummary
@@ -61,6 +62,7 @@ class Ncbi:
         stream.close()
         return record
 
+    @api_call
     def fetch(self, db, id):
         """
         thin wrapper around the NCBI Entrez efetch

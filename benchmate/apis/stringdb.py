@@ -1,7 +1,7 @@
 import json
 
 import requests
-
+from benchmate.apis.utils import api_call
 
 class StringDb:
     def __init__(self):
@@ -17,6 +17,7 @@ class StringDb:
         self.url="https://string-db.org/api/json/get_string_ids?identifiers={}&species={}"
         self.headers = {"Content-Type": "application/json"}
 
+    @api_call
     def gather(self, species, name, get_network=False, network_depth=1):
         string_id, common_name, annotation = self._get_identifiers(species, name)
         interactions = self._get_interactions(string_id)

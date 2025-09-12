@@ -6,6 +6,7 @@ import json
 
 from benchmate.ranges.genomicranges import GenomicRange
 from benchmate.variant.variant import *
+from benchmate.apis.utils import api_call
 
 #I'm skipping the genome stuff because we have the genome class that will get the genome build the db etc.
 # this is also the whole point of genomic ranges classes, that we can do these calculations locally, I do not think
@@ -33,6 +34,7 @@ class Ensembl:
                           'refseq', 'shift_3prime', 'shift_genomic', 'transcript_version',
                           'tsl', 'uniprot', 'variant_class', 'vcf_string', 'xref_refseq']
 
+    @api_call
     def variation(self,  id, method=None, species="human", pubtype=None, add_annotations=False):
         """
         Get variation information from the Ensembl REST API.
@@ -65,7 +67,7 @@ class Ensembl:
         decoded = json.loads(response.text)
         return decoded
 
-
+    @api_call
     def vep(self, species, variant, tools, check_existing=True):
         """"
         Get variant effect prediction from the Ensembl REST API.
@@ -94,6 +96,7 @@ class Ensembl:
         decoded = decoded[0]
         return decoded
 
+    @api_call
     def phenotype(self, grange, species="human"):
         """
         Get phenotype information from the Ensembl REST API that is associated with the genomic range.
@@ -110,6 +113,7 @@ class Ensembl:
         decoded = json.loads(response.text)
         return decoded
 
+    @api_call
     def sequence(self, id, trim_end=None, trim_start=None, expand_3=None, expand_5=None, sequence_type="genomic"):
         """
         Get sequence information from the Ensembl REST API for a given ensembl id
@@ -138,19 +142,23 @@ class Ensembl:
         decoded = pd.DataFrame(response.json())
         return decoded
 
-
-    def xrefs(self, id):
+    @api_call
+    def xrefs(self, id, species="human", external=False):
         """
         Get cross references from the Ensembl REST API for a given ensembl id
         :param id: ensembl id, because the ids also specify the species you do not need to specify the species
         :return: a dict of cross references these can be used to get the ids from other databases from other apis
         """
-        ext = f"/xrefs/id/{id}?all_levels=1"
+        if external:
+            ext=f"/xrefs/name/{species}/{id}?"
+        else:
+            ext = f"/xrefs/id/{id}?all_levels=1"
         response = requests.get(f"{self.base_url}{ext}", headers=self.headers)
         response.raise_for_status()
         decoded=pd.DataFrame(response.json())
         return decoded
 
+    @api_call
     def mapping(self, id, start, end, type="cDNA"):
         """
         Get mapping information from the Ensembl REST API for a given ensembl id, convert between cDNA, CDS and protein
@@ -174,6 +182,7 @@ class Ensembl:
         decoded = json.loads(response.text)
         return decoded
 
+    @api_call
     def overlap(self, grange, features=None, species="human"):
         """
         Get overlap information from the Ensembl REST API for a given genomic range, this can be used to get the features that are
@@ -213,6 +222,7 @@ class Ensembl:
         decoded = json.loads(response.text)
         return decoded
 
+    @api_call
     def homology(self, id, type="orthologues", target_species=None, source_species="human"):
         """
         Get homology information from the Ensembl REST API for a given ensembl id, this can be used to get orthologues and paralogues

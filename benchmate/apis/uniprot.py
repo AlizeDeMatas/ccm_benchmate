@@ -2,7 +2,7 @@ import pandas as pd
 import json
 
 from benchmate.utils.general_utils import *
-
+from benchmate.apis.utils import api_call
 
 class UniProt:
     def __init__(self):
@@ -32,6 +32,7 @@ class UniProt:
 
         return content
 
+    @api_call
     def search_uniprot(self, uniprot_id, consolidate_refs=True, get_variations=True,
                        get_interactions=True, get_mutagenesis=True, get_isoforms=True):
         """
@@ -79,7 +80,7 @@ class UniProt:
             results["isoforms"] = isoforms
 
         if consolidate_refs:
-            references = self.consolidate_references(results)
+            references = self._consolidate_references(results)
             results["references"] = references["references"]
 
         return results
@@ -161,7 +162,7 @@ class UniProt:
         variation = variants
         return variation
 
-    def consolidate_references(self, results):
+    def _consolidate_references(self, results):
         """
         pul all references from the isoforms, mutagenesis, interactions and variations into a single list this is useful
         for literature mining and other tasks

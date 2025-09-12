@@ -1,10 +1,10 @@
-# TODO this will include Gtex, biogrid, Omnipath and reactome (not sure if this is needed)
+# TODO this will include Gtex, Omnipath and not sure if this is needed)
 
 import pandas as pd
 import requests
 import json
+from benchmate.apis.utils import api_call
 
-#TODO: add docstrings to all classes and methods not all methods are implemented yet.
 
 class BioGrid:
     def __init__(self, access_key):
@@ -18,7 +18,7 @@ class BioGrid:
         self.organisms=self._get_organisms(header=self.header)
         self.id_types=self._get_supported_identifiers(header=self.header)
 
-
+    @api_call
     def interactions(self, gene_list, evidence_types=None, organism=None):
         """
         Get the interactions for the given gene list.
@@ -130,6 +130,7 @@ class IntAct:
 
         return interactions, last_page
 
+    @api_call
     def intact_search(self, ebi_id, page=0):
         interactions, last_page = self._search(ebi_id, page)
         while not last_page:
