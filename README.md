@@ -3,11 +3,11 @@
 </div>
 
 <p align="center">
-    <a href="https://shields.io/community#backers" alt="Activity">
+    <a href="" alt="Activity">
         <img src="https://img.shields.io/github/commit-activity/m/ccmbioinfo/ccm_benchmate" /></a>
-    <a href="https://shields.io/community#backers" alt="stars">
+    <a href="" alt="stars">
         <img src="https://img.shields.io/github/stars/ccmbioinfo/ccm_benchmate" /></a>
-    <a href="https://shields.io/community#backers" alt="Docs">
+    <a href="" alt="Issues">
         <img src="https://img.shields.io/github/issues/ccmbioinfo/ccm_benchmate" /></a>
     <a href="https://ccmbioinfo.github.io/ccm_benchmate/">
         <img alt="Documentation" src="https://img.shields.io/website?url=https%3A%2F%2Fccmbioinfo.github.io%2Fccm_benchmate%2F&label=Documentation"></a>
