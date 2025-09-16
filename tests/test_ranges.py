@@ -382,8 +382,8 @@ class TestGenomicRangesList:
 
         # slice returns a RangesList (from ranges module), per current implementation
         sub = grl[1:]
-        from benchmate.ranges.ranges import RangesList as RL  # type check only
-        assert isinstance(sub, RL)
+        from benchmate.ranges.genomicranges import GenomicRangesList as GRL  # type check only
+        assert isinstance(sub, GRL)
         assert len(sub) == 1
 
     def test_pop_insert_append_extend_remove(self):
