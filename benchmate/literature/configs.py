@@ -15,4 +15,4 @@ table_message = [{"role": "system", "content": [{"type": "text",
              interpret the table. Do not provide comments on whether the table is well done or not. Do not provide extra text on describing that you are looking at table from a scientific publication. 
              Give an overall conclusion about what the tables tells us. 
              """}]},
-                       {"role": "user", "content": [{"type": "image", "image": None, }], }]
+                       {"role": "user", "content": [{"type": "image",

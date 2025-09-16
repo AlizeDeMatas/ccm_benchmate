@@ -122,18 +122,14 @@ class PaperInfo:
     table_interpretation_embeddings: Optional[np.ndarray] = None
     download_link: str = None
     downloaded: bool = False
-    pathname: str = None
+    file_path: str = None
     openalex_info: Optional[dict] = None
     references: Optional[list] = None
     related_works: Optional[list] = None
     cited_by: Optional[list] = None
 
-
-
-
 class Paper:
-    def __init__(self, paper_id, id_type="pubmed", search_info=True, download=True,
-                 destination=".", process=True, **process_kwargs):
+    def __init__(self, paper_id, id_type="pubmed"):
         """
         This class is used to download and process a paper from a given id, it can also be used to process a paper from a file
         :param paper_id:
@@ -146,20 +142,6 @@ class Paper:
         self.info=PaperInfo(paper_id, id_type)
         self.info.abstract, self.info.title, self.info.authors= self.get_abstract()
 
-        if search_info:
-           self.search_info()
-
-        if download and self.info.download_link is not None:
-            try:
-                self.download(destination)
-                self.info.downloaded=True
-                self.info.pathname=destination
-            except:
-                self.info.downloaded=False
-                warnings.warn("Could not download paper")
-
-        if process and self.info.downloaded:
-            self.process(self.info.pathname, **process_kwargs)
 
     #I cannot imagine a paper where there are not authors I'm not writing a check for that.
     def get_abstract(self):
@@ -234,52 +216,8 @@ class Paper:
         download.raise_for_status()
         with open("{}/{}.pdf".format(destination, self.info.id), "wb") as f:
             f.write(download.content)
-        file_paths=os.path.abspath(os.path.join("{}/{}.pdf".format(destination, self.info.id)))
-        self.info.pathname=file_paths
-        return None
-
-    #TODO I need to pass arguments properly the **kwargs is not going to work
-    def process(self, file_path, embed_images=True, embed_text=True,
-                embed_interpretations=True, **kwargs):
-        """
-        see utils.py for details
-        :return:
-        """
-        article_text, figures, tables, figure_interpretation, table_interpretation = process_pdf(file_path)
-        self.info.text=article_text
-        self.info.figures=figures
-        self.info.tables=tables
-        self.info.figure_interpretation=figure_interpretation
-        self.info.table_interpretation=table_interpretation
-
-        if embed_images:
-            if len(self.info.figures) > 0:
-                figure_embeddings=[]
-                for fig in self.info.figures:
-                    figure_embeddings.append(image_embeddings(fig))
-
-            if len(self.info.tables) > 0:
-                table_embeddings=[]
-                for table in self.info.tables:
-                    table_embeddings.append(image_embeddings(table))
-
-        if embed_text:
-            self.info.abstract_embeddings=text_embeddings(self.info.abstract, splitting_strategy="none")[1]
-            if self.info.text is not None:
-                self.info.text_chunks, self.info.chunk_embeddings=text_embeddings(self.info.text,
-                                                                        splitting_strategy="semantic",
-                                                                        **kwargs)
-        if embed_interpretations:
-            if self.info.figure_interpretation is not None:
-                self.info.figure_interpretation_embeddings=text_embeddings(self.info.figure_interpretation,
-                                                                      splitting_strategy="none",
-                                                                      **kwargs)[1]
-
-            if self.info.table_interpretation is not None:
-                self.info.table_interpretation_embeddings=text_embeddings(self.info.table_interpretation,
-                                                                      splitting_strategy="none",
-                                                                     **kwargs)[1]
-
+        file_path=os.path.abspath(os.path.join("{}/{}.pdf".format(destination, self.info.id)))
+        self.info.file_path=file_path
         return None
 
     def get_references(self):
