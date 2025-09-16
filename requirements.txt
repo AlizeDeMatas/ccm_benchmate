@@ -1,13 +1,12 @@
 pandas==2.1.4
+
 biopython
-torch
 beautifulsoup4
-transformers==4.52.1
+transformers
 sentence-transformers
 qwen_vl_utils
 accelerate
 datasets
-esm
 requests
 biotite
 pymupdf4llm
@@ -29,3 +28,5 @@ docker
 openpyxl
 model2vec
 psycopg2
+pytesseract
+rdkit
