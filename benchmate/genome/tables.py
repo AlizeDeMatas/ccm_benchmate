@@ -6,7 +6,7 @@ from sqlalchemy.ext.declarative import declarative_base
 
 StandAloneBase=declarative_base()
 
-class Genome(StandAloneBasese):
+class Genome(StandAloneBase):
     __tablename__ = 'genome'
     id = Column(Integer, primary_key=True, autoincrement=True)
     project_id = Column(Integer, ForeignKey('project.id'))

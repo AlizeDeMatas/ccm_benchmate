@@ -26,7 +26,8 @@ class Genome:
         :param taxon_id: taxon id of the genome
         """
         self.db=db_conn
-        self.session = sessionmaker(self.db)
+        Session = sessionmaker(self.db)
+        self.session = Session()
         self.metadata = sqlalchemy.MetaData(self.db)
         self.metadata.reflect(bind=self.db)
         self.tables = self.metadata.tables
@@ -562,7 +563,7 @@ class Genome:
             file=self.proteome_fasta
 
         if genomic_range.chrom not in file.references:
-            raise ValueError(f"Chromosome {genomic_range.chromosome} not found in genome fasta file.")
+            raise ValueError(f"Chromosome {genomic_range.chrom} not found in genome fasta file.")
         start = genomic_range.ranges.start
         end = genomic_range.ranges.end
         strand = genomic_range.strand
