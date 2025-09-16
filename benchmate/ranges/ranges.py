@@ -72,7 +72,10 @@ class Range:
         return ranges
 
     def __str__(self):
-        return str(f"Range from {self.start} to {self.end}")
+        return f"Range from {self.start} to {self.end}"
+
+    def __repr__(self):
+        return f"Range from {self.start} to {self.end}"
 
     def __add__(self, other):
         if type(other) is Range:

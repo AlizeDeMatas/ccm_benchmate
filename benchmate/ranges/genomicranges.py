@@ -1,10 +1,12 @@
-
+import warnings
 from benchmate.ranges.ranges import Range, RangesList, RangesDict
 
 
 class GenomicRange:
     def __init__(self, chrom, start, end, strand, annotation=None):
         self.chrom = chrom
+        if strand not in ["+", "-", "*"]:
+            raise ValueError("strand must be +/-/*")
         self.strand = strand
         self.ranges = Range(start, end)
         self.annotation = annotation
@@ -183,7 +185,7 @@ class GenomicRangesList:
         if isinstance(item, int):
             results = self.items[item]
         elif isinstance(item, slice):
-            results = RangesList(self.items[item])
+            results = GenomicRangesList(self.items[item])
         return results
 
     def __len__(self):
@@ -236,25 +238,30 @@ class GenomicRangesList:
         else:
             return True
 
-    #TODO  this is not correct and should return a rangesdict per chrom and chrom/strand
     def reduce(self, ignore_strand=False):
         ranges = {}
         for item in self.items:
-            if item.chrom not in ranges.keys():
-                if not ignore_strand:
-                    ranges[item.chrom] = {"+": [], "-": []}
-                else:
-                    ranges[item.chrom] = []
+            if not ignore_strand:
+                ranges[item.chrom] = {"+": [], "-": []}
             else:
-                if not ignore_strand:
-                    ranges[item.chrom][item.strand].append(item.ranges)
+                ranges[item.chrom] = []
+
+        for item in self.items:
+            if not ignore_strand:
+                if item.strand=="+":
+                    ranges[item.chrom]["+"].append(item.ranges)
+                elif item.strand=="-":
+                    ranges[item.chrom]["-"].append(item.ranges)
                 else:
-                    ranges[item.chrom].append(item.ranges)
+                    warnings.warn(f"Strand {item.strand} is * setting ignore strand to True.")
+                    ignore_strand = True
 
         for chrom in ranges.keys():
             if not ignore_strand:
-                ranges[chrom]["+"] = RangesList(ranges[chrom]["+"]).reduce()
-                ranges[chrom]["-"] = RangesList(ranges[chrom]["-"]).reduce()
+                if len(ranges[chrom]["+"]) > 0:
+                    ranges[chrom]["+"] = RangesList(ranges[chrom]["+"]).reduce()
+                if len(ranges[chrom]["-"]) > 0:
+                    ranges[chrom]["-"] = RangesList(ranges[chrom]["-"]).reduce()
             else:
                 ranges[chrom] = RangesList(ranges[chrom]).reduce()
         return ranges
