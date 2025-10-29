@@ -1,14 +1,15 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='ccm_benchmate',
+    name='benchmate',
     version='0.1.0',
-    description="Python package for demonstrating simple proteomics integrations and one liners",
+    description="A data aggregation tool for omic data including literature search and accessing public databases",
+    url='ccmbioinfo.github.io/benchmate',
     author='Alper Celik',
     author_email='alper.celik@sickkids.ca',
     packages=find_packages(),
     zip_safe=False,
     package_data={"": ["*.json"]},
-    scripts=["ccm_benchmate/scripts/run_mmseqs.sh"],
+    scripts=["benchmate/scripts/run_mmseqs.sh"],
     include_package_data=True
 )
