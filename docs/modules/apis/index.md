@@ -1,7 +1,7 @@
-## APIs module ---
+---
 layout: default
-title: API's module
-parent: modules
+title: APIs
+parent: Modules
 nav_order: 1
 ---
 
@@ -30,4 +30,7 @@ to obtain information about different biological complexes and much more.
 + [AlphaGenome](https://www.alphagenomedocs.com/index.html): AlphaGenome is a server running the latest alphagenome models
 for variant, sequence and genomic interval consequence/feature predictions. 
 
-You can see detailed usage examples for each of these publicly available databases in their respective documentation. 
+You can see detailed usage examples for each of these publicly available databases in their respective documentation. Not every database provides
+a robus api to query, nor their documentaion is exhaustive or even well prepared. We are a small team and we are trying to generate
+as many resources as we can while being mindful or the work that is required to achieve the highest yield in the shortest amount of time. 
+

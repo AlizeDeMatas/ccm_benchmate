@@ -1,6 +1,9 @@
-<a id="__init__"></a>
-
-# \_\_init\_\_
+---
+layout: default
+title: Molecule reference
+parent: API Reference
+nav_order: 7
+---
 
 <a id="molecule"></a>
 

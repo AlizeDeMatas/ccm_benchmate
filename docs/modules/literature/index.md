@@ -1,3 +1,10 @@
+---
+layout: default
+title: Literature
+parent: Modules
+nav_order: 1
+---
+
 ## Literature module:
 
 This module provides a way to search for scientific literature. It is designed to work with the NCBI PubMed and ARXIV databases.

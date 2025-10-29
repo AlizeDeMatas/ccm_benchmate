@@ -1,7 +1,8 @@
 ---
 layout: default
-title: Project Meta Module
-nav_order: 11
+title: Project
+parent: Under Construction
+nav_order: 3
 ---
 
 # Project Meta Module

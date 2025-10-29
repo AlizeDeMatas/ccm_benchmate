@@ -1,6 +1,9 @@
-<a id="__init__"></a>
-
-# \_\_init\_\_
+---
+layout: default
+title: Ranges and GenomicRanges Reference
+parent: API Reference
+nav_order: 4
+---
 
 <a id="ranges"></a>
 

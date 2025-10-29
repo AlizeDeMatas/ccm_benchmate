@@ -1,3 +1,10 @@
+---
+layout: default
+title: Literature module reference
+parent: API Reference
+nav_order: 2
+---
+
 
 <a id="literature"></a>
 

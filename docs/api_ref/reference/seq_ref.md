@@ -1,6 +1,9 @@
-<a id="__init__"></a>
-
-# \_\_init\_\_
+---
+layout: default
+title: Sequence module reference
+parent: API Reference
+nav_order: 5
+---
 
 <a id="sequence"></a>
 

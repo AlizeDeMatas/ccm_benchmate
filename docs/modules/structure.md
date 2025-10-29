@@ -1,7 +1,8 @@
 ---
 layout: default
-title: Structure Module
-nav_order: 8
+title: Structure
+parent: Modules
+nav_order: 5
 ---
 
 # Structure Module

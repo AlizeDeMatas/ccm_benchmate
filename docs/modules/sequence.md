@@ -1,7 +1,8 @@
 ---
 layout: default
-title: Sequence Module
-nav_order: 7
+title: Sequence
+parent: Modules
+nav_order: 4
 ---
 
 # Sequence Module
@@ -77,5 +78,5 @@ We are working on adding more functionalities to this module. While it is tempti
 latest deeplearning models and predict a bunch of things about a sequence that is well beyond the scope of this module and 
 will also cause the number of dependencies to explode. We are trying to keep this module light and focused on the core functionalities.
 
-For other predictions or advanced tasks we are aiming to use the [containers](containers.md) module. This will allow us and you
+For other predictions or advanced tasks we are aiming to use the [containers](../under_construction/containers.md) module. This will allow us and you
 to use whatever method and model you want and then re-create a Sequence object with the results. 

@@ -17,5 +17,6 @@ build
 *.env
 notebooks
 *demo
+docs/_site
 
 
