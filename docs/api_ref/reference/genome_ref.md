@@ -1,3 +1,11 @@
+---
+layout: default
+title: Genome module reference
+parent: API Reference
+nav_order: 3
+---
+
+
 <a id="genome"></a>
 
 # genome

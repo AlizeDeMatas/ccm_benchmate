@@ -1,6 +1,9 @@
-<a id="__init__"></a>
-
-# \_\_init\_\_
+---
+layout: default
+title: Structure reference
+parent: API Reference
+nav_order: 6
+---
 
 <a id="structure"></a>
 

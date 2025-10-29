@@ -1,7 +1,8 @@
 ---
 layout: default
-title: Variant Module
-nav_order: 9
+title: Variants
+parent: Modules
+nav_order: 7
 ---
 
 # Variant Module

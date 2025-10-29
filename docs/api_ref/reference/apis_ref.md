@@ -1,6 +1,9 @@
-<a id="__init__"></a>
-
-# \_\_init\_\_
+---
+layout: default
+title: APIs module reference
+parent: API Reference
+nav_order: 1
+---
 
 <a id="reactome"></a>
 

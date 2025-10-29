@@ -1,6 +1,7 @@
 ---
 layout: default
-title: Ranges and GenomicRanges Module
+title: Ranges and GenomicRanges
+parent: Modules
 nav_order: 6
 ---
 

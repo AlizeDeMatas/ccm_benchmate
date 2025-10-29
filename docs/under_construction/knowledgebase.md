@@ -1,7 +1,8 @@
 ---
 layout: default
-title: Knowledge Base Module
-nav_order: 10
+title: KnowledgeBase
+parent: Under Construction
+nav_order: 2
 ---
 
 # Knowledge Base Module
@@ -14,7 +15,7 @@ for different things.
 
 Below is the database schema:
 
-![Database Schema](assets/kb_schema.png)
+![Database Schema](../assets/kb_schema.png)
 
 There are a lot of modalities represented in the database, and some of them are split into several different tables. 
 
@@ -28,5 +29,5 @@ projects.
 ## Notes:
 
 This project is still under heavy development. The tables and the schemas may change and new tables might be added with 
-additional modalities. Please see [contributing](contributing.md) for more information about how to add your own and 
+additional modalities. Please see [contributing](../contributing.md) for more information about how to add your own and 
 contribute to the project. 
