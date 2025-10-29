@@ -27,6 +27,14 @@ def generate_molecule_dataset(smiles_files, library_dir, shapes=[shape_maccs, sh
 
 
 def tanimoto(a, b):
+    """
+    computes the tanimoto distance between two boolean numpy arrays
+    :param a: fingerprint a
+    :param b: fingerprint b
+    :return: tanimito similarity
+    """
+    if not a.shape == b.shape:
+        raise ValueError("shapes must be the same to compute tanimoto distance")
     ands = np.logical_and(a, b).sum()
     ors = np.logical_or(a, b).sum()
     return 1 - ands / ors

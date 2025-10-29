@@ -8,12 +8,16 @@ import numpy as np
 from bs4 import BeautifulSoup as bs
 
 from benchmate.literature.utils import *
-from benchmate.literature.paper_processor import PaperProcessor
 
 class NoPapersError(Exception):
     pass
 
 def paper_from_response(openalex_response):
+    """
+    generate a paper object from an openalex response
+    :param openalex_response: openalex response json
+    :return: a paper object
+    """
     if "pmid" in openalex_response["ids"].keys():
         paper_id=openalex_response["ids"]["pmid"].split("/").pop()
         id_type="pubmed"
@@ -37,6 +41,11 @@ def paper_from_response(openalex_response):
 
 
 def paper_from_link(link):
+    """
+    generate a paper object from an openalex link, this is useful for references and related works
+    :param link: openalex link
+    :return: a paper object
+    """
     openalex_id=link.split("/").pop()
     info=search_openalex(paper_id=openalex_id, id_type="openalex")
     paper=paper_from_response(info)
@@ -46,6 +55,8 @@ class LitSearch:
     def __init__(self, pubmed_api_key=None, email=None, sort_by="relevance"):
         """
         create the ncessary framework for searching
+        :param email: email to use for pubmed api
+        :param sort_by: relevance or pub+date
         :param pubmed_api_key:
         """
         self.pubmed_key = pubmed_api_key
@@ -60,18 +71,15 @@ class LitSearch:
             "sort": self.sorting,
         }
 
-
-        #TODO advanced search, while technically supported because query is just a string it would be nice if it was explicit
     def search(self, query, database="pubmed", results="id", max_results=1000):
         """
         search pubmed and arxiv for a query, this is just keyword search no other params are implemented at the moment
         :param query: this is a string that is passed to the search, as long as it is a valid query it will work and other fields can be specified
         :param database: pubmed or arxiv
         :param results: what to return, default is paper id PMID and arxiv id
-        :param max_results:
+        :param max_results: max number of results to return default 1000
         :return: paper ids specific to the database
         """
-        #TODO implement pubmed api key for non-free papers, implement email
         if database == "pubmed":
             search_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term={}&retmax={}".format(query, max_results)
             search_response = requests.get(search_url, params=self.params)
@@ -104,6 +112,10 @@ class LitSearch:
 
 @dataclass
 class PaperInfo:
+    """
+    Dataclass to hold information about a paper, this is constructed inside the Paper class and desined to be compatible with
+    semantic search and embedding distance searches
+    """
     id: str
     id_type: str
     title: Optional[str] = None
@@ -147,6 +159,10 @@ class Paper:
 
     #I was wrong, you can have a paper with no authors apparently
     def get_abstract(self):
+        """
+        get the abstract of the paper from pubmed or arxiv
+        :return: fill in the paper info abstract, title, authors
+        """
         if self.info.id_type =="pubmed":
             response=requests.get("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id={}".format(self.info.id))
             response.raise_for_status()
@@ -198,6 +214,10 @@ class Paper:
         return abstract_text, title, authors
 
     def search_info(self):
+        """
+        search openalex for the paper info and download link
+        :return: fill in the paper info openalex_info and download_link
+        """
         openalex_info = search_openalex(id_type=self.info.id_type, paper_id=self.info.id)
         if openalex_info is None:
             warnings.warn("Could not find a paper with id {}".format(self.info.id))
@@ -220,6 +240,11 @@ class Paper:
         return None
 
     def download(self, destination):
+        """
+        download the paper pdf to the destination folder
+        :param destination: where to download the paper, it must exist, the folder will not be created or checked for existence
+        :return: download the paper pdf to the destination folder
+        """
         download = requests.get(self.info.download_link, stream=True)
         download.raise_for_status()
         if download.headers.get("Content-Type", "").lower() == "application/pdf":
@@ -232,6 +257,10 @@ class Paper:
         return None
 
     def get_references(self):
+        """
+        get the references of the paper from openalex
+        :return: fill in the paper info references
+        """
         if "referenced_works" not in self.info.openalex_info.keys():
             raise ValueError("The response does not contain references.")
         references=self.info.openalex_info["referenced_works"]
@@ -248,6 +277,10 @@ class Paper:
         return None
 
     def get_related_works(self):
+        """
+        get the related works of the paper from openalex
+        :return: fill in the paper info related_works
+        """
         if "related_works" not in self.info.openalex_info.keys():
             raise ValueError("The response does not contain related works.")
         references = self.info.openalex_info["related_works"]
@@ -263,6 +296,11 @@ class Paper:
         return None
 
     def get_cited_by(self, cursor="*"):
+        """
+        get the papers that cite this paper from openalex
+        :param cursor: the used does not need to worry about this, it is used for pagination and recursive calls
+        :return: fill in the paper info cited_by
+        """
         if "cited_by_api_url" not in self.info.openalex_info.keys():
             raise ValueError("The response does not contain cited by information.")
         url = self.info.openalex_info["cited_by_api_url"] + "&cursor="

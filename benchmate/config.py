@@ -2,17 +2,18 @@
 resource_path="/home/alper/Documents/packages/ccm_benchmate/benchmate/models"
 
 literature = {"vl_model":
-                  {"model":
-                       {"name": "Qwen/Qwen2.5-VL-3B-Instruct",
+                    {"model":
+                   {"name": "Qwen/Qwen2.5-VL-3B-Instruct",
                         "config": {
-                            "cache_dir": f"{resource_path}/hf_models"},
-                        "processor": {"name": "Qwen/Qwen2.5-VL-3B-Instruct",
-                                      "config": {
-                                          "cache_dir": f"{resource_path}/hf_models"},
-                                      "table_prompt": "You are an expert biologist who is responsible for reading and interpreting scientific tables. For a given table from a scientific paper interpret the table. Do not provide comments on whether the table is well done or not. Do not provide extra text on describing that you are looking at table from a scientific publication. Give an overall conclusion about what the tables tells us.",
-                                      "figure_prompt": "You are an expert biologist who is responsible for reading and interpreting scientific figures. For a given figure from a scientific paper interpret the figure. Do not provide comments on whether the figure is well done or not. Do not provide extra text on describing that you are looking at figure from a scientific publication. Whenever possible very briefly describe each sections of the figure and then give an overall conclusion about what the figure tells us. ", }
-                        }
+                            "cache_dir": f"{resource_path}/hf_models"}},
+                    "processor": {"name": "Qwen/Qwen2.5-VL-3B-Instruct",
+                          "config": {
+                              "cache_dir": f"{resource_path}/hf_models"}
+                                      },
+                   "table_prompt": "You are an expert biologist who is responsible for reading and interpreting scientific tables. For a given table from a scientific paper interpret the table. Do not provide comments on whether the table is well done or not. Do not provide extra text on describing that you are looking at table from a scientific publication. Give an overall conclusion about what the tables tells us.",
+                   "figure_prompt": "You are an expert biologist who is responsible for reading and interpreting scientific figures. For a given figure from a scientific paper interpret the figure. Do not provide comments on whether the figure is well done or not. Do not provide extra text on describing that you are looking at figure from a scientific publication. Whenever possible very briefly describe each sections of the figure and then give an overall conclusion about what the figure tells us. ",
                    },
+
               "lp_model": {
                   "model_path": f"{resource_path}/lp_model/model_final.pth",
                   "config_path": f"{resource_path}/lp_model/config.yaml",
@@ -46,7 +47,8 @@ api_call={
     }
 }
 
-sequence={
+#TODO
+alignment={
     "databases":{
         "mmseqs2":{
         "UniRef50": f"{resource_path}/mmseqs/uniref50/",

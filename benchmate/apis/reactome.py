@@ -102,12 +102,21 @@ class Reactome:
             return None
 
     def show_values(self, field):
+        """
+        show available values for a given field
+        :param field: see show fields
+        :return: a list
+        """
         if field not in self.fields.keys():
             raise ValueError("That is not one of the available fields, please run show fields")
         else:
             return self.fields[field]
 
     def show_fields(self):
+        """
+        show available fields for filtering
+        :return: a list
+        """
         return list(self.fields.keys())
 
     def __str__(self):

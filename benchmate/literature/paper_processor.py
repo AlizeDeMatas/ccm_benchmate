@@ -91,6 +91,15 @@ class PaperProcessor:
 
 
     def image_embeddings(self, images, processor, model):
+        """
+        generate image embeddings using a vision model and its processor
+        :param images: images, these can be tables or figures
+        :param processor: image processor this is a huggingface processor
+        :param model: the vl model this is a huggingface model
+        :return: return the embeddings as a list. Depending on the kind of model used this can be a 1D or 2D embedding,
+        the current implementaion of this function does not care but your knowledgebase and the project class will break if the
+        necessary changes are not made to accomodate the embedding shape
+        """
         batch_images = processor.process_images(images).to(self.device)
         with torch.no_grad():
             image_embeddings = model(**batch_images)
@@ -234,11 +243,13 @@ class PaperProcessor:
                 paper.info.table_interpretation = []
                 if len(paper.info.figures) > 0:
                     for figure in paper.info.figures:
-                        paper.info.figure_interpretation.append(self.interpret_image(figure, self.config["vl_model"]["figure_prompt"], model, processor))
+                        paper.info.figure_interpretation.append(self.interpret_image(figure,
+                                                                                     self.config["vl_model"]["figure_prompt"], model, processor))
 
                 if len(paper.info.tables) > 0:
                     for table in paper.info.tables:
-                        paper.info.table_interpretation.append(self.interpret_image(table, self.config["vl_model"]["table_prompt"], model, processor))
+                        paper.info.table_interpretation.append(self.interpret_image(table,
+                                                                                    self.config["vl_model"]["table_prompt"], model, processor))
 
 
         if embed_iterpretations:
@@ -275,6 +286,12 @@ class PaperProcessor:
         return papers
 
     def text_score(self, query, papers):
+        """
+        score papers based on text similarity to a query, this is used in the project class to rank papers based on their relevance to a project description
+        :param query: a description of what you are looking for
+        :param papers: a list of paper instances
+        :return: a list of scores corresponding to the papers one per paper
+        """
 
         chunker_model = Model2VecEmbeddings(self.config["chunker_model"]["model"])
         chunker = SemanticChunker(

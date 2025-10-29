@@ -1,23 +1,17 @@
 import io
-from typing import Iterator, Tuple, Union, Optional, List
 
 import pandas as pd
 
-from Bio.Seq import Seq
-from Bio.SeqRecord import SeqRecord
 from Bio.Blast import NCBIWWW
 from Bio.Blast import NCBIXML
 
 
-
-#TODO Check these values
 KD = {
     'I': 4.5, 'V': 4.2, 'L': 3.8, 'F': 2.8, 'C': 2.5, 'M': 1.9, 'A': 1.8, 'G': -0.4,
     'T': -0.7, 'S': -0.8, 'W': -0.9, 'Y': -1.3, 'P': -1.6, 'H': -3.2, 'E': -3.5,
     'Q': -3.5, 'D': -3.5, 'N': -3.5, 'K': -3.9, 'R': -4.5
 }
 
-#TODO check these numbers
 AA_MASS = {
     'A': 89.0935, 'R': 174.2017, 'N': 132.1184, 'D': 133.1032, 'C': 121.1590,
     'E': 147.1299, 'Q': 146.1451, 'G': 75.0669,  'H': 155.1552, 'I': 131.1736,
@@ -41,7 +35,65 @@ PKA = {
 }
 
 
+ncbi_blast_databases = {
+    "nucleotide": {
+        "nr": "Non-redundant nucleotide sequences from GenBank, EMBL, DDBJ, and PDB.",
+        "refseq_mrna": "RefSeq mRNA sequences.",
+        "refseq_genomic": "RefSeq genomic sequences including chromosomes and assemblies.",
+        "est": "Expressed Sequence Tags (ESTs) from various organisms.",
+        "gss": "Genome Survey Sequences (single-pass genomic reads).",
+        "htgs": "High-Throughput Genomic Sequences (unfinished genome data).",
+        "pat": "Patent nucleotide sequences.",
+        "pdb": "Nucleotide sequences derived from Protein Data Bank entries.",
+        "month": "Sequences added or updated in the last 30 days.",
+        "alu_repeats": "Alu repeat elements from REPBASE.",
+        "dbsts": "Sequence Tagged Sites (STS).",
+        "chromosome": "Complete chromosome sequences from RefSeq.",
+        "wgs": "Whole Genome Shotgun sequences.",
+        "env_nt": "Environmental nucleotide sequences.",
+        "core_nt": "Optimized subset of nucleotide sequences for faster searches."
+    },
+    "protein": {
+        "nr": "Non-redundant protein sequences from GenBank, PDB, SwissProt, PIR, PRF.",
+        "refseq_protein": "RefSeq protein sequences.",
+        "swissprot": "Curated protein sequences from UniProt/Swiss-Prot.",
+        "pat": "Protein sequences from patent sources.",
+        "month": "Protein sequences added or updated in the last 30 days.",
+        "pdb": "Protein sequences derived from PDB entries.",
+        "env_nr": "Proteins translated from environmental nucleotide sequences."
+    },
+    "domain_models": {
+        "smart": "SMART protein domain models.",
+        "pfam": "Pfam protein families database.",
+        "cog": "Clusters of Orthologous Groups.",
+        "kog": "Eukaryotic orthologous groups.",
+        "cdd": "Conserved Domain Database (CDD)."
+    },
+    "genome_specific": {
+        "genome_all": "All public genome assemblies.",
+        "genome_reference": "Reference genome assemblies only.",
+        "build_rna": "RNA sequences from genome builds.",
+        "build_protein": "Protein sequences from genome builds.",
+        "ab_initio_rna": "Predicted RNA sequences from genome annotation.",
+        "ab_initio_protein": "Predicted protein sequences from genome annotation.",
+        "bac_ends": "BAC end sequences.",
+        "traces": "Raw sequencing traces.",
+        "wgs_contigs": "Contigs from WGS assemblies."
+    }
+}
+
+
+
 def blast_search(program, database, sequence, expect_threshold=10.0, hitlist_size=50):
+    """
+    perfrom blast search via ncbi api this is not local blast
+    :param program: which program to use blastp, blastn, blastx, tblastn, tblastx, psiblast
+    :param database:
+    :param sequence: Sequence instance
+    :param expect_threshold: threshold
+    :param hitlist_size: max number of hits
+    :return: a dataframe
+    """
     if not all([program, database, sequence]):
         raise ValueError("Program, database, and sequence are required parameters.")
 

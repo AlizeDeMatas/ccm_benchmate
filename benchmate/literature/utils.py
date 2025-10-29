@@ -7,9 +7,12 @@ import json
 from benchmate.utils.general_utils import *
 
 def extract_pdfs_from_tar(file, destination):
-    """Lists the contents of a .tar.gz file.
-    Args:
-        file_path: The path to the .tar.gz file.
+    """
+    extract all pdf files from a tar.gz file to a destination folder and return the paths to the extracted pdf files
+    this is there to process pmc tar.gz files
+    :param file: downloaded tar.gz file
+    :param destination: where to extract the pdf files
+    :return: a list of paths to the extracted pdf files
     """
     if not os.path.exists(destination):
         raise FileNotFoundError("{} does not exist.".format(destination))
@@ -42,7 +45,15 @@ def extract_pdfs_from_tar(file, destination):
         return None
 
 #This is not for the end user, this is for the developers
-def filter_openalex_response(response, fields=None):
+def filter_openalex_response(response, fields=["id", "ids", "doi", "title", "topics", "keywords", "concepts",
+                "mesh", "best_oa_location", "referenced_works", "related_works",
+                "cited_by_api_url", "datasets"]):
+    """
+    filters the openalex response to only include the specified fields
+    :param response: openalex response
+    :param fields: which fields to include a list of strings
+    :return: new response with only the specified fields
+    """
     if fields is None:
         fields=["id", "ids", "doi", "title", "topics", "keywords", "concepts",
                 "mesh", "best_oa_location", "referenced_works", "related_works",
@@ -56,6 +67,13 @@ def filter_openalex_response(response, fields=None):
 # the whole citeby references etc need to be removed and then re-written as a separate function
 # I give up on semantic scholar, it is unlikely I will get an api key, and openalex is good enough
 def search_openalex(id_type, paper_id, fields=None):
+    """
+    api call for openalex to retrieve paper information
+    :param id_type: pubmed or arxiv
+    :param paper_id: the id
+    :param fields: which field to get, passed to filter_openalex_response
+    :return:
+    """
     base_url = "https://api.openalex.org/works/{}"
     if id_type == "doi":
         paper_id = f"https://doi.org/:{paper_id}"
@@ -80,6 +98,15 @@ def search_openalex(id_type, paper_id, fields=None):
 
 # its here, not sure if I will use it, still waiting for an api key, feel like not gonna happen
 def search_semantic_scholar(paper_id, id_type, api_key=None, fields=None):
+    """
+    api call for semantic scholar to retrieve paper information, requires an api key
+    :param paper_id: paper id
+    :param id_type: id type, doi, arxiv, mag, pubmed, pmcid, ACL
+    :param api_key: api key for semantic scholar
+    :param fields: which fields to retrieve, list of strings
+    :return: a dict with the paper information, this is currently not used not it is compatible with the paper class or other
+    supporting functions
+    """
     base_url="https://api.semanticscholar.org/graph/v1/paper/{}?fields={}"
     if id_type == "doi":
         paper_id=f"DOI:{paper_id}"

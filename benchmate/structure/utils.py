@@ -17,6 +17,13 @@ cif_parser = MMCIFParser()
 
 
 def download(id, source="PDB", destination=None):
+    """
+    download a cif file (RSCB) or a pdb file (AFDB) for a given id
+    :param id: id
+    :param source: where to get it from PDB or AFDB
+    :param destination: where to download ti
+    :return:  a path, you can use this to download things it's also being used by Structure internally
+    """
     if source == "PDB":
         url = "http://files.rcsb.org/download/{}.cif".format(id)
     elif source == "AFDB":
@@ -34,13 +41,9 @@ def download(id, source="PDB", destination=None):
 
 def get_pocket_dimensions(pocket_path):
     """
-    Args:
-        pocket_path (str): Path to the PDB file of the binding pocket.
-
-    Returns:
-        tuple:
-            center (list of float): The [x, y, z] center coordinates.
-            bbox_size (float): The maximum length in any dimension.
+    get the bounding box of a pocket
+    :param pocket_path: pocket pdb from find_pockets
+    :return: x,y,z coords
     """
     parser = PDBParser(PERMISSIVE=1)
     structure = parser.get_structure("pocket", pocket_path)

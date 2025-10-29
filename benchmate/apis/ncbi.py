@@ -37,11 +37,11 @@ class Ncbi:
     def search(self, db, query, retmax=100):
         """
         thin wrapper around the NCBI Entrez esearch
-        :param db:
-        :param query:
-        :param retmax:
-        :return:
-        """
+        :param db: the database to search, use show_databases to see available databases
+        :param query: the query string, this can be anything that can be typed into the NCBI search bar
+        :param retmax: maximum number of results to return 10000 is the api max
+        :return: a list of ncbi ids matching the query from that database the ids are not unique to each database so there can be
+        another item with the same id in another database        """
         stream = Entrez.esearch(db=db, term=query, retmax=retmax)
         record = Entrez.read(stream)
         stream.close()
@@ -75,6 +75,10 @@ class Ncbi:
         return record
 
     def show_databases(self):
+        """
+        show available databases
+        :return: a list of strings of database names, these strings can be used in other functions
+        """
         return self.databases
 
     def get_db_info(self, db):

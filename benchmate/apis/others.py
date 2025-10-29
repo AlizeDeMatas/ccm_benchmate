@@ -142,6 +142,13 @@ class IntAct:
 
     @api_call
     def intact_search(self, ebi_id, page=0):
+        """
+        search intact database
+        :param ebi_id: ebi
+        :param page: which page to start from, this is more of a precaution for very large searches, if you lose connection you can
+        resume from the last page you got data from, default 0
+        :return: a dataframe of all interactions found
+        """
         interactions, last_page = self._search(ebi_id, page)
         while not last_page:
             page = page + 1
@@ -150,7 +157,7 @@ class IntAct:
         interactions = pd.DataFrame(interactions)
         return interactions
 
-#TODO add mouse
+
 class AlphaGenome:
     def __init__(self, access_key):
         """

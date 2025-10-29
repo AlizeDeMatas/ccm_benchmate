@@ -4,13 +4,26 @@ from math import floor
 
 
 class Range:
+    """
+    A class representing a numerical range with start and end values. inclusive
+    """
     def __init__(self, start, end):
+        """"
+        Initializes a Range object.
+        :param start: The start value of the range (inclusive).
+        :param end: The end value of the range (inclusive).
+        """
         self._check_values(start, end)
         self.start = start
         self.end = end
         self._range = pd.Interval(self.start, self.end, closed='both')
 
     def shift(self, amount=0):
+        """
+        move the range by amount units, can be negative
+        :param amount: which way to move the range, if positive to the right if negative to the left
+        :return: self but moved
+        """
         new_start = self.start + amount
         new_end = self.end + amount
         self._check_values(new_start, new_end)
@@ -19,6 +32,12 @@ class Range:
         return self
 
     def extend(self, start=0, end=0):
+        """
+        extend the range in either direction
+        :param start: how much to extend the start of the range (can be negative)
+        :param end: how much to extend the end of the range (can be negative)
+        :return: self but extended
+        """
         new_start = self.start + start
         new_end = self.end + end
         self._check_values(new_start, new_end)
@@ -28,6 +47,17 @@ class Range:
         return self
 
     def overlaps(self, other, type="exact"):
+        """
+        determine whether two ranges overlap
+        :param other: other Range to compare to
+        :param type: what kind of overlap to check for, options are:
+            "exact": ranges are exactly the same
+            "within": other is completely within self
+            "start": other starts within self
+            "end": other ends within self
+            "any": any overlap between the two ranges
+        :return: bool True or False depending on whether they overlap in the specified way
+        """
         assert(isinstance(other, Range))
         overlap_types=["exact", "within", "start", "end", "any"]
         if type not in overlap_types:
@@ -47,6 +77,10 @@ class Range:
             return None
 
     def distance(self, other):
+        """
+        calculate the distance between two ranges if they overlap by any amount the distance is 0
+        :param other: other Range to compare to
+        """
         assert(isinstance(other, Range))
         if self.overlaps(other, type="any"):
             return 0
@@ -105,34 +139,65 @@ class Range:
 
 
 class RangesList:
+    """
+    a list of ranges, this is a single list, the items cannot be rangeslists themselves
+    """
     def __init__(self, ranges):
+        """
+        constructor
+        :param ranges: a list of Range objects
+        """
         assert(isinstance(ranges, list))
         for item in ranges:
             assert (isinstance(item, Range))
         self.items = ranges
 
     def pop(self, index):
+        """
+        remove and return item at index
+        :param index: index to remove if larger than length-1 will raise IndexError
+        :return: the item
+        """
         assert(isinstance(index, int))
         return self.items.pop(index)
 
     def insert(self, index, value):
+        """
+        insert value at index
+        :param index: index to insert at
+        :param value: range to insert
+        :return: self
+        """
         assert(isinstance(index, int))
         assert(isinstance(value, Range))
         self.items.insert(index, value)
 
     def append(self, item):
+        """
+        add to the end
+        :param item: what to add
+        :return: self
+        """
         assert(isinstance(item, Range))
         self.items.append(item)
 
     def extend(self, other):
+        """
+        extend by another RangesList
+        :param other: RangesList to extend by
+        :return: self
+        """
         assert(isinstance(other, RangesList))
         self.items.extend(other.items)
 
-    def remove(self, item):
-        assert(isinstance(item, Range))
-        self.items.remove(item)
-
     def find_overlaps(self, other=None, type="exact", return_ranges=True):
+        """
+        find overlapping pair indices between two RangesLists, if other is none that means other is self
+        :param other: other rangeslist
+        :param type: what kind of overlap to check for, see Range.overlaps for options
+        :param return_ranges: whehter to return a tuple of indices or a tuple of ranges
+        :return: a tuple of overlapping pairs ranges or indices
+        """
         if other is None:
             other = self
         assert(isinstance(other, RangesList))
@@ -148,7 +213,11 @@ class RangesList:
         return overlaps
 
     def coverage(self):
-
+        """
+        calculate coverage across all ranges in the RangesList, this means the number of ranges covering each position
+        :return: a list of coverage values, where the index corresponds to the position relative to the minimum start position
+        0 index corresponds to min start position, 1 index to min start + 1
+        """
         min_pos = min(r.start for r in self.items)
         max_pos = max(r.end for r in self.items)
         length = max_pos - min_pos + 1
@@ -223,6 +292,10 @@ class RangesList:
             return True
 
     def reduce(self):
+        """
+        reduce the RangesList to a single Range that covers all ranges in the list
+        :return: a range that covers all ranges in the list
+        """
         starts=[]
         ends=[]
         for item in self.items:
@@ -236,24 +309,23 @@ class RangesList:
 
 class RangesDict(dict):
     def __init__(self, keys, values):
+        """
+        constructor
+        :param keys: list of strings
+        :param values: list of RangesList or Range objects
+        """
         super().__init__()
         for key, value in zip(keys, values):
             assert(isinstance(key, str))
             assert(isinstance(value, RangesList) or isinstance(value, Range))
             self[key] = value
 
-    def find_overlaps(self, other=None, type="exact"):
-        if other is None:
-            other = self
-        assert(isinstance(other, RangesDict))
-        overlaps = {}
-        for key in self.keys():
-            if key not in other.keys():
-                continue
-            overlaps[key] = self[key].find_overlaps(other[key], type=type)
-        return overlaps
-
     def to_df(self):
+        """
+        convert the RangesDict to a pandas DataFrame
+        0 columns: name, start, end
+        :return: a dataframe representation of the RangesDict
+        """
         names=list(self.keys())
         values={
             "name":[],

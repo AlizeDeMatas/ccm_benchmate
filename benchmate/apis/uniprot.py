@@ -8,10 +8,6 @@ class UniProt:
     def __init__(self):
         """
         constructor for the UniProt class, which is used to gather data from the UniProt API. and process it in a readable format.
-        :param uniprot_id:
-        :param search_intact:
-        :param consolidate_refs:
-        :param kwargs:
         """
         self.url = "https://www.ebi.ac.uk/proteins/api/proteins?accession={}"
         self.search_url="https://rest.uniprot.org/uniprotkb/search"
@@ -20,6 +16,7 @@ class UniProt:
     def _gather(self, uniprot_id):
         """
         This function gathers data from the UniProt API using the provided uniprot_id.
+        :param uniprot_id: uniprot accession
         :return: whole json response from the API
         """
         response = requests.get(self.url.format(uniprot_id), headers=self.headers)
@@ -33,8 +30,15 @@ class UniProt:
 
         return content
 
-    #this does not need to be an api call instance but something tells me that I'm wrong (again)
+
     def search(self, query, page_size=500):
+        """
+        free text query for the uniprot api
+        :param query: text query, anything that can be searched on the uniprot website
+        :param page_size: number of items per request, this is not the total number of results, it will get results until
+        there are no more pages
+        :return: a dataframe of name, uniprot id, gene name, organism and a brief description
+        """
         params = {
             "query": query,
             "fields": ["accession", "protein_name", "gene_names", "organism_name"],
@@ -88,8 +92,14 @@ class UniProt:
     def get_info(self, uniprot_id, consolidate_refs=True, get_variations=True,
                        get_interactions=True, get_mutagenesis=True, get_isoforms=True):
         """
-        process the json response from the UniProt API and extract relevant information.
-        :return: returns self because it modfies the class instance
+        gather all the information about a specific entry described by the uniprot id
+        :param uniprot_id: uniprot accession
+        :param consolidate_refs: whether to consolidate all the references from the different sections into a single list
+        :param get_variations: whether to call the variations api
+        :param get_interactions: whether to call the interactions api
+        :param get_mutagenesis: whether to call the mutagenesis api
+        :param get_isoforms: whether to call the isoforms api
+        :return:
         """
         id = uniprot_id
         json=self._gather(uniprot_id)
@@ -140,8 +150,8 @@ class UniProt:
     def _extract_description(self, results):
         """
         concanate the comments from the json response into a single string this can be used in nlp tasks or comparing
-        uniprot instances
-        :return:
+        uniprot instances this is an internal function
+        :return: a string that concats all the comments as a description
         """
         desc = []
         for comment in results["comments"]:
@@ -152,7 +162,7 @@ class UniProt:
 
     def _extract_references(self, results):
         """
-        internal function to extract references from the json response
+        internal function to extract references from the json response, this is an internal function
         :return: references
         """
         refs = []
@@ -166,7 +176,7 @@ class UniProt:
 
     def _extract_xrefs(self, results):
         """
-        internal function to extract xrefs from the json response
+        internal function to extract xrefs from the json response this is an internal function
         :return: xref types and xrefs
         """
         xrefs = results["dbReferences"]
@@ -176,7 +186,7 @@ class UniProt:
 
     def get_features(self, results, feature_types=None):
         """
-        filter already extracted features by type
+        filter already extracted features by type, this just filters the features from the json response
         :param feature_types: type of the feature to filter by
         :return: the features
         """
@@ -217,7 +227,7 @@ class UniProt:
     def _consolidate_references(self, results):
         """
         pul all references from the isoforms, mutagenesis, interactions and variations into a single list this is useful
-        for literature mining and other tasks
+        for literature mining and other tasks, this is an internal function
         :return: references
         """
 
@@ -247,10 +257,8 @@ class UniProt:
 class Interactions:
     def __init__(self, uniprot):
         """
-        constructor for the Interactions class, which is used to gather interaction data from the UniProt API as well as Intact database.
-        :param uniprot:
-        :param search_intact:
-        :param kwargs:
+        query the uniprot API for interaction data
+        :param uniprot: uniprot class
         """
         self.uniprot_id = uniprot["id"]
         self.url = 'https://www.ebi.ac.uk/proteins/api/proteins/interaction/{}'
@@ -266,11 +274,14 @@ class Interactions:
         interactions = content
         return interactions
 
-    # TODO need to move logic out of there for recursion need a __method__
 
 
 class Isoforms:
     def __init__(self, uniprot):
+        """
+        query the uniprot API for isoform data not all proteins have isoforms and there will be warnings if none are found
+        :param uniprot: uniprot class
+        """
         self.uniprot_id = uniprot["id"]
         self.url = 'https://www.ebi.ac.uk/proteins/api/proteins/{}/isoforms'
         self.headers = {'Accept': 'application/json'}

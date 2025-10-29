@@ -1,4 +1,3 @@
-from benchmate.variant.variant import *
 
 def infer_variant_type(ref_allele, alt_allele):
     """

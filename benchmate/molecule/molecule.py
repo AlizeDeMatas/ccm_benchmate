@@ -66,8 +66,8 @@ class Molecule:
         elif using == "maccs":
             shape = shape_maccs
 
-        data = FingerprintedDataset(library, shapes=shape)
-        results = data.search(smiles=self.info.smiles, n=n)
+        data = FingerprintedDataset(library, shapes=[shape_maccs, shape_ecfp4, shape_fcfp4])
+        results = data.search(smiles=self.info.smiles, n=n, shape=shape)
         return results
 
     def similarity(self, other, fingerprint):

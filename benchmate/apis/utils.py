@@ -11,8 +11,7 @@ from benchmate.config import *
 
 embedding_model=StaticModel.from_pretrained(api_call["text_embedding_model"]["model"])
 
-# alphagenome is rather static and does not return an apicall it returns, genomicrance, sequence or variant depending on the
-# endpoint
+
 api_mapper={
     "Ensembl":"benchmate.apis.ensembl",
     "Ncbi":"benchmate.apis.ncbi",
@@ -27,8 +26,8 @@ api_mapper={
 def api_call(func):
     """
     add metadata to an api call and return the apicall dataclass instance insteaed of just a dict
-    :param func:
-    :return:
+    :param func: function to be decorated
+    :return: a wrapper function, this will return an ApiCall instance with all information about the api call
     """
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -73,6 +72,12 @@ class ApiCall:
         return method
 
     def rerun(self, access_key=None, email=None):
+        """
+        rerun the api call with the same parameters, useful if the api call failed or if you want to update the results
+        :param access_key: if the api requires an access key like alphagenome or biogrid
+        :param email: if the api requires an email like ncbi
+        :return: an updated ApiCall instance
+        """
         method=self._get_method(access_key=access_key, email=email)
         results=method(*self.args, **self.kwargs)
         # results is already an api call because of the decorator
@@ -112,6 +117,13 @@ class ApiCall:
         return "|".join([item[1]["value"] for item in self.chunks])
 
     def _serialize(self, obj, path="root", max_chunk_chars=1000):
+        """
+        recursive function to serialize a json object into chunks
+        :param obj: json object or a subset of it
+        :param path: where to start the path
+        :param max_chunk_chars: max number of characters per chunk not words
+        :return: a dict of path and string value
+        """
         scalars = (str, int, float, bool, type(None), bytes)
         chunks = []
         if isinstance(obj, dict):

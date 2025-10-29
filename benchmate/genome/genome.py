@@ -98,7 +98,7 @@ class Genome:
         Gene id or range if range is provided it will return the genes in that range depending on the overlap type
         :param id: Gene id, that used in the gtf file
         :param range: A GenomicRange object
-        :param overlap_type: one of ['any', 'start', 'end', 'within'] see rangaes and genomicranges for more info
+        :param ignore_strand: whether to ignore strand this will return all the genes in the range regardless of strand
         :return: a GenomicRangesDict object with the genes in it, each key is the gene name and the value is a GenomicRange object
         """
 
@@ -152,12 +152,14 @@ class Genome:
 
     def transcripts(self, gene_ids=None, ids=None, range=None, ignore_strand=True, group_by_gene=True):
         """
-        same as genes
-        :param gene_id:
-        :param id:
-        :param range:
-        :param overlap_type:
-        :return:
+        return transcripts by gene id, transcript id or range
+        :param gene_ids: return transcripts for these gene ids
+        :param ids: return transcripts with these transcript ids
+        :param range: return transcripts in this range
+        :param ignore_strand: ignore strand when searching by range
+        :param group_by_gene: whether to group the returned transcripts by gene id, if true the returned object
+        will have gene ids as keys and GenomicRangesList as values, if false the returned object will have transcript ids as keys and GenomicRange as values
+        :return: a genomic ranges dict object
         """
 
         chroms_table = self.tables['chrom']
@@ -222,11 +224,12 @@ class Genome:
     def exons(self, transcript_ids=None, range=None, group_by_transcript=True, ignore_strand=True):
         """
         same as genes but will need to search by transcript not gene, if you do not know the transcript search for it with transcripts first
-        :param transcript_id:
-        :param id:
-        :param range:
-        :param overlap_type:
-        :return:
+        :param transcript_id: return all exons for this transcript id
+        :param id: return exon with this id
+        :param range: return exons in this range
+        :param group_by_transcript :whether to group the returned exons by transcript id, if true the returned object
+        :param ignore_strand: whether to ignore strand when searching by range
+        :return: a genomic ranges dict object, if not grouped by transcript the keys will be exon ids otherwise the keys will be transcript ids
         """
         chroms_table = self.tables['chrom']
         genes_table = self.tables['gene']
@@ -292,12 +295,12 @@ class Genome:
 
     def coding(self, transcript_ids=None, range=None, group_by_transcript=True, ignore_strand=True):
         """
-        same as exons
-        :param transcript_id:
-        :param id:
-        :param range:
-        :param overlap_type:
-        :return:
+        same as exons return all the coding sequences for a transcript or a list of transcripts
+        :param transcript_id: return all coding sequences for this transcript id
+        :param id:return coding sequence with this id
+        :param range:return coding sequences in this range
+        :param group_by_transcript: whether to group the returned coding sequences by transcript id, if true the returned object
+        :return: a genomic ranges dict object, if not grouped by transcript the keys will be coding sequence ids otherwise the keys will be transcript ids
         """
 
         chroms_table = self.tables['chrom']
@@ -371,6 +374,15 @@ class Genome:
 
 
     def three_utr(self, transcript_ids=None, range=None, ignore_strand=True):
+        """
+        return all the 3' utrs for a transcript or a list of transcripts
+        :param transcript_ids: return 3' utrs for these transcript ids
+        :param range: return 3' utrs in this range
+        :param ignore_strand: regardless of strand
+        :return: a genomic ranges dict object with transcript ids as keys and GenomicRangesList as values, the utrs are not described as
+        separate exons but the exons are merged into one if that utr spans multple exons. Additionally if the utrs ends in the middle
+        of an exon the utr will end there.
+        """
         chroms_table = self.tables['chrom']
         genes_table = self.tables['gene']
         transcripts_table = self.tables['transcript']
@@ -430,6 +442,15 @@ class Genome:
 
 
     def five_utr(self,  transcript_ids=None, ids=None, range=None, ignore_strand=True):
+        """
+        return all the 5' utrs for a transcript or a list of transcripts
+        :param transcript_ids: return 3' utrs for these transcript ids
+        :param range: return 3' utrs in this range
+        :param ignore_strand: regardless of strand
+        :return: a genomic ranges dict object with transcript ids as keys and GenomicRangesList as values, the utrs are not described as
+        separate exons but the exons are merged into one if that utr spans multple exons. Additionally if the utrs ends in the middle
+        of an exon the utr will end there.
+        """
         chroms_table = self.tables['chrom']
         genes_table = self.tables['gene']
         transcripts_table = self.tables['transcript']
@@ -494,12 +515,14 @@ class Genome:
 
     def introns(self, transcript_ids=None, ids=None, range=None, group_by_transcript=True, ignore_strand=True):
         """
-        same as exons
-        :param transcript_id:
-        :param id:
-        :param range:
-        :param overlap_type:
-        :return:
+        return all the introns for a transcript or a list of transcripts
+        :param transcript_id:return introns for this transcript id
+        :param id:return intron with this id (introns usually are not descibed in a gtf, so this id may not be very useful since
+        it is an auto incremented id)
+        :param range:return introns in this range
+        :param group_by_transcript: return introns grouped by transcript
+        :param ignore_strand: whether to ignore strand when searching by range
+        :return: return: a genomic ranges dict object, if not grouped by transcript the keys will be intron ids otherwise the keys will be transcript ids
         """
 
         chroms_table = self.tables['chrom']
@@ -600,10 +623,11 @@ class Genome:
     def add_annotation(self, table, row_id, annots):
         """
         add arbitrary annotations as a dictionary to a specific row in a specific table
-        :param table:
-        :param id:
-        :param annots:
-        :return:
+        :param table: which table to add the annotations to
+        :param id: which row id to add the annotations to, this is the datbase internal id not the gene_id or transcript_id, those
+        ids can be found in the annotations of each row
+        :param annots: a dictionary of annotations to add
+        :return: None but the database will be updated
         """
         if type(annots) != dict:
             raise ValueError(f"Annotation type {type(annots)} not supported. They must be dictionaries")

@@ -13,8 +13,10 @@ class RnaCentral:
     def get_information(self, id: str, get_xrefs: bool = True, get_publications: bool = True):
         """
         Get information about a specific RNAcentral entry.
-        :param id: The ID of the entry.
-        :return: A dictionary containing information about the entry.
+        :param id: rnacentral identifier
+        :param get_xrefs: whether to get cross-references form other databases
+        :param get_publications: whether to get publications related to the entry, these will return pubmed ids
+        :return: a dictionary containing information about the RNAcentral entry
         """
         url = f"{self.rna_central_api_url}/{id}/"
         response = requests.get(url, headers=self.headers)
@@ -40,7 +42,7 @@ class RnaCentral:
         else:
             raise Exception(f"Error: {response.status_code} - {response.text}")
 
-    def _get_xrefs(self, response, id: str):
+    def _get_xrefs(self, response):
         """
         Get cross-references for a specific RNAcentral entry.
         :return: a dataframe containing cross-references information the modifications section will be a dict not just a string

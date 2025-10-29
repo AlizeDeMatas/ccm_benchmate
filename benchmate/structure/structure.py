@@ -21,11 +21,11 @@ class StructureInfo:
 class Structure:
     def __init__(self, name, file, id=None, source="PDB", destination="."):
         """
-        :param name:
-        :param pdb:
-        :param id:
-        :param source:
-        :param destination:
+        :param name: name
+        :param file: pdb or cif file
+        :param id: id can be none if file is none and id is not we will download from source
+        :param source: where to get the pdb from
+        :param destination: where to download it, these are passed to structure.utils.download
         """
 
         if file is not None:
@@ -48,7 +48,14 @@ class Structure:
             raise NotImplementedError("We can only read PDB or CIF files")
         return structure
 
+    #TODO parse these
     def align(self, other, destination):
+        """
+        align 2 structures (they must have a file) using mustang
+        :param other:  other structure
+        :param destination: where to save the output
+        :return: result of the file, html output for alignment and rotation
+        """
         if self.file is None or other.pdb is None:
             raise ValueError("Cannot align structures without a PDB")
 
@@ -82,11 +89,13 @@ class Structure:
         return pocket_files, pocket_coords
 
     def to_3di(self, chain):
+        "for a chain convert the structure to 3di"
         chain=self._get_chain(chain)
         seq, _ = str(alphabet.to_3di(chain)[0])
         return Sequence(name=self.info.name + "_" + chain.chain_id, sequence=seq, seq_type="3di")
 
     def sequence(self):
+        "extract the aa sequence from the pdb, if there are gap there will be - if there are uknown aa there will be an X"
         seqs=[]
         for chain in self.info.chains:
             chain_atoms = self._get_chain(chain)
@@ -99,6 +108,11 @@ class Structure:
             return SequenceList(seqs)
 
     def tm_score(self, other):
+        """
+        run us-align to get the tm score between 2 structures
+        :param other: other structure
+        :return: retun the tm score
+        """
         assert(isinstance(other, Structure))
         cmd = ["USalign", self.file, other.file, "-outfmt", "2"]
         run = subprocess.run(cmd, capture_output=True, text=True)
@@ -118,10 +132,13 @@ class Structure:
     def contacts(self, chain_id1, chain_id2, cutoff=5.0, level="atom", measure="any"):
         """
         Get contacts between two chains in the structure.
-        :param chain_id1:
-        :param chain_id2:
-        :param cutoff:
-        :return:
+        :param chain_id1: chain 1
+        :param chain_id2: chain 2
+        :param cutoff: distance cutoff to be called contacting default 5A
+        :param level: if "atom" return the contacting atom, if residue return the resdiues
+        :measure: how the contact is calculated, if any any atom within the cutoff range will be included
+        if CA only alpha carbons are counted
+        :return:a list of atoms, residues etc.
         """
         chain1 = self._get_chain(chain_id1)
         chain2 = self._get_chain(chain_id2)
@@ -146,7 +163,7 @@ class Structure:
         return contacts
 
     def __repr__(self):
-        return "Structure(name={}, pdb={}, chains={})".format(self.info.name, self.info.pdb, ",".join(self.chains))
+        return "Structure(name={}, pdb={}, chains={})".format(self.info.name, self.info.file, ",".join(self.chains))
 
     def __str__(self):
         return self.file

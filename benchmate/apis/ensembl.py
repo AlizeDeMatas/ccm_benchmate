@@ -38,12 +38,12 @@ class Ensembl:
     def variation(self,  id, method=None, species="human", pubtype=None, add_annotations=False):
         """
         Get variation information from the Ensembl REST API.
-        :param id:
+        :param id: variant id
         :param method: search method, default is None which means we will get information otherwise you can search for
         publications (pmid and pmcid) or translation which converts the notations to other notations
         :param species: species to search for, default is human
         :param pubtype:
-        :return:
+        :return: returns a detailed dict with the variation information depending on the paramters described above
         """
         methods=["translate", "publication"]
         if method not in methods and method is not None:
@@ -75,7 +75,7 @@ class Ensembl:
         :param variant: variant to search for, must be a Variant object
         :param tools: tools to use for the prediction, default is None which means we will just return basic information
         :param check_existing: check population frequencies from gnomad and 1kg
-        :return: variant effect prediction a detailed dict
+        :return: variant effect prediction a detailed dict, not all tools are compatible with all variants and each other
         """
         var_string=to_hgvs(variant)
         ext= f"/vep/{species}/hgvs/{var_string}?"
@@ -123,7 +123,8 @@ class Ensembl:
         :param expand_3: expand this many nucleotides from the 3' end not compatible with trim_end
         :param expand_5: expand this many nucleotides from the 5' end not compatible with trim_start
         :param sequence_type: genomics, cds, protein, cdna
-        :return:
+        :return: sequence of the thing that is requested, depending on the type this can be genomic sequence, cds sequence, protein sequence or cdna sequence,
+        multiple sequences are returned as a dataframe
         """
         types=["genomic", "cds", "protein", "cdna"]
         if trim_end is not None and expand_3 is not None:
@@ -272,9 +273,6 @@ class Ensembl:
 
     def show_vep_tools(self):
         return self.vep_tools
-
-
-    #TODO haplotypes?
 
 
 

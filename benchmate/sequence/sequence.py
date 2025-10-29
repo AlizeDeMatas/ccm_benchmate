@@ -1,9 +1,6 @@
-import os
-import tempfile
 from collections import Counter
 from dataclasses import dataclass
-import subprocess
-from typing import Dict, Optional
+from typing import Dict
 
 import biotite.sequence
 from biotite.application.clustalo import ClustalOmegaApp
@@ -82,7 +79,7 @@ class Sequence:
         :return: structure in dot-bracket notation, free energy in kcal/mol, list of base pairs
         """
         self._ensure_nucleic()
-        seq=biotite.sequence.NucleotideSequence(self.sequence)
+        seq=biotite.sequence.NucleotideSequence(self.sequence.replace("U", "T"))
         app = RNAfoldApp(seq, temperature=temperature)
         if args:
             app.add_additional_options(*args)
@@ -126,6 +123,11 @@ class Sequence:
             raise TypeError("Operation requires DNA or RNA sequence.")
 
     def reverse_complement(self, keep_features=True):
+        """
+        reverse complement the sequence only works for dna and rna
+        :param keep_features: keep the original features
+        :return: another Sequence instance
+        """
         self._ensure_nucleic()
         seq=biotite.sequence.NucleotideSequence(self.sequence)
         seq=seq.complement().reverse()
@@ -140,6 +142,8 @@ class Sequence:
         """
         Translate nucleic acids to protein. Uses Biopython table if available; otherwise
         supports only standard table (1) for unambiguous triplets; ambiguous codons → 'X'.
+        :param keep_features: keep existing features
+        :to_stop: stop translating if you run into a stop codon of the standard table
         """
         self._ensure_nucleic()
         seq=Seq(self.sequence)
@@ -261,7 +265,7 @@ class Sequence:
             )
             # Negative groups: C-term, D, E, C, Y
             neg = (
-                    1.0 / (1.0 + 10 ** (PKA["Cterm"] - pH)) +
+                    1.0 / (1.0 + 10 ** (cterm_pka- pH)) +
                     counts["D"] * (1.0 / (1.0 + 10 ** (PKA["D"] - pH))) +
                     counts["E"] * (1.0 / (1.0 + 10 ** (PKA["E"] - pH))) +
                     counts["C"] * (1.0 / (1.0 + 10 ** (PKA["C"] - pH))) +
@@ -300,9 +304,8 @@ class Sequence:
 
     def mutate(self, position, to, new_name= None, keep_features=True):
         """
-        Returns a NEW Sequence with a substitution at position (0-based).
-        Maintains features as-is (positions are unchanged); if you need to
-        propagate effects to per_position/intervals, use __getitem__/insert/delete or remap_features.
+        Mutata a specific location to something else, use caution we are not checking for validitiy that is you can
+        insert arbitrary things
         """
         if position < 0 or position >= len(self):
             raise ValueError(f"Position {position} out of bounds for length {len(self)}")
@@ -344,7 +347,7 @@ class Sequence:
     @classmethod
     def from_fasta(cls, file_path, seq_type):
         """
-        Read one or many sequences from a FASTA file.
+        Read one or many sequences from a FASTA file. If there are multiple sequence you will get a SequenceList
         """
         records = list(SeqIO.parse(file_path, 'fasta'))
         if not records:

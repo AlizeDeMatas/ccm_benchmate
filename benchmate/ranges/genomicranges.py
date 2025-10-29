@@ -6,7 +6,17 @@ from benchmate.ranges.ranges import Range, RangesList
 
 
 class GenomicRange:
+    """
+    Class representing a genomic range with chromosome, start, end, strand, and optional annotations.
+    """
     def __init__(self, chrom, start, end, strand, annotation=None):
+        """Initialize a GenomicRange object.
+        :param chrom: Chromosome name (string)
+        :param start: Genomic start (int)
+        :param end: Genomic end (int)
+        :param strand: Strand information ('+', '-', or '*')
+        :param annotation: Optional annotation (string or dict) if string will be dict like {"annot": annotation}
+        """
         self.chrom = chrom
         if strand not in ["+", "-", "*"]:
             raise ValueError("strand must be +/-/*")
@@ -21,14 +31,17 @@ class GenomicRange:
                 self.annotation={"annot":annotation}
 
     def shift(self, amount):
+        """Shift the genomic range by a specified amount."""
         self.ranges=self.ranges.shift(amount)
         return self
 
     def extend(self, start, end):
+        """Extend the genomic range by specified amounts at start and end."""
         self.ranges=self.ranges.extend(start, end)
         return self
 
-    def overlaps(self, other, ignore_strand=False, type="exact"):
+    def overlaps(self, other, ignore_strand=False, type="any"):
+        """Check if this genomic range overlaps with another."""
         overlap_types=["exact", "within", "start", "end", "any"]
         if type not in overlap_types:
             raise ValueError(f"overlap_type must be one of {overlap_types}")
@@ -43,6 +56,7 @@ class GenomicRange:
         return self.ranges.overlaps(other.ranges, type=type)
 
     def distance(self, other, ignore_strand=False):
+        """Calculate the distance between this genomic range and another. if they overlap, distance is 0."""
         assert(isinstance(other, GenomicRange))
         if self.chrom != other.chrom:
             raise ValueError("Genomic ranges must have same chrom")
@@ -77,33 +91,43 @@ class GenomicRange:
 
 class GenomicRangesList:
     def __init__(self, granges):
+        """Initialize a GenomicRangesList object. this cannot be a nested list."""
         for item in granges:
             assert isinstance(item, GenomicRange)
 
         self.items = granges
 
     def pop(self, index):
+        """Remove and return item at index."""
         assert (isinstance(index, int))
         return self.items.pop(index)
 
     def insert(self, index, value):
+        """Insert a GenomicRange at a specific index."""
         assert (isinstance(index, int))
         assert (isinstance(value, GenomicRange))
         self.items.insert(index, value)
 
     def append(self, item):
+        """Append a GenomicRange to the list."""
         assert (isinstance(item, GenomicRange))
         self.items.append(item)
 
     def extend(self, other):
+        """Extend the list with another GenomicRangesList."""
         assert (isinstance(other, GenomicRangesList))
         self.items.extend(other.items)
 
-    def remove(self, item):
-        assert (isinstance(item, GenomicRange))
-        self.items.remove(item)
 
     def find_overlaps(self, other=None, type="exact", ignore_strand=False, return_ranges=True):
+        """
+        Find overlaps between this GenomicRangesList and another.
+        :param other: other GenomicRangesList to compare with, if none, compares with self
+        :param type: what kind of overlap to look for, one of "exact", "within", "start", "end", "any"
+        :param ignore_strand: whether to ignore strand information when finding overlaps
+        :param return_ranges: whether to return the overlapping GenomicRange objects or their indices
+        :return: a list of tuples of overlapping ranges or their indices
+        """
         if other is None:
             other = self
         assert (isinstance(other, GenomicRangesList))
@@ -254,6 +278,11 @@ class GenomicRangesList:
             return True
 
     def reduce(self, ignore_strand=False):
+        """
+        Reduce overlapping or adjacent genomic ranges into minimal set of non-overlapping ranges. This will be done per chromosome
+        :param ignore_strand: whether to ignore strand information when reducing
+        :return:
+        """
         ranges = {}
         for item in self.items:
             if not ignore_strand:
@@ -286,25 +315,19 @@ class GenomicRangesList:
 
 
 class GenomicRangesDict(dict):
+    """
+    Class representing a dictionary of genomic ranges or lists of genomic ranges.
+    """
     def __init__(self, keys, values):
+        """Initialize a GenomicRangesDict object."""
         super().__init__()
         for key, value in zip(keys, values):
             assert(isinstance(key, str))
             assert(isinstance(value, GenomicRangesList) or isinstance(value, GenomicRange))
             self[key] = value
 
-    def find_overlaps(self, other=None, type="exact", ignore_strand=False):
-        if other is None:
-            other = self
-        assert (isinstance(other, GenomicRangesDict))
-        overlaps = {}
-        for key in self.keys():
-            if key not in other.keys():
-                continue
-            overlaps[key] = self[key].find_overlaps(other[key], type=type, ignore_strand=ignore_strand)
-        return overlaps
-
     def to_df(self):
+        """Convert the GenomicRangesDict to a pandas DataFrame."""
         names = list(self.keys())
         values = {
             "name": [],

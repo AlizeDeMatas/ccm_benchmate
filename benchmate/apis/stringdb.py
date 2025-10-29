@@ -19,6 +19,15 @@ class StringDb:
 
     @api_call
     def gather(self, species, name, get_network=False, network_depth=1):
+        """
+        gather all the information about a specific entry
+        :param species: which specices, this is to disambiguate, since homologs can have the same name across species
+        :param name: name of the query
+        :param get_network: whether to get the interactors of interactors
+        :param network_depth: depth of the networks, this makes the queries grow exponentially.
+        :return: a dictionary of results, if the network depth is greater than one, under the "network" key you will
+        see other entries
+        """
         string_id, common_name, annotation = self._get_identifiers(species, name)
         interactions = self._get_interactions(string_id)
 
@@ -34,7 +43,9 @@ class StringDb:
     def _get_identifiers(self, species, name):
         """
         get all the identifiers for the protein of interest.
-        :return: self (will change)
+        :param species: species id for the protein, default is human, you can taxanomy id from ncbi
+        :param name: some sort of identifier for the protein it support uniprot, gene
+        :return: string_id, common_name, annotation
         """
         response = requests.get(
             f"https://string-db.org/api/json/get_string_ids?identifiers={name}&species={species}")
@@ -51,6 +62,7 @@ class StringDb:
     def _get_interactions(self, string_id):
         """
         return interactions
+        :param string_id: string id of the protein
         :return: self
         """
         response = requests.get(
@@ -63,11 +75,12 @@ class StringDb:
 
     def _get_network(self, id, visited_nodes=None, network_depth=2):
         """
-
-        :param id:
-        :param visited_nodes:
-        :param network_depth:
-        :return:
+        get the interacton network, with larger network depths the number of queries will grow exponentially, this is an
+        internal function called by gather
+        :param id: string id of the protein
+        :param visited_nodes: set of already visited nodes to avoid cycles
+        :param network_depth: depth of the network
+        :return: more interactions
         """
         if visited_nodes is None:
             visited_nodes = set()
