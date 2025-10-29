@@ -1,4 +1,4 @@
----
+from benchmate.sequence.sequence import Sequence---
 layout: default
 title: Sequence
 parent: Modules
@@ -7,12 +7,8 @@ nav_order: 4
 
 # Sequence Module
 
-A module for working with biological sequences, providing sequence analysis, alignment, and embedding capabilities. Currenlty, 
-the functionalities are limited to but are expanding. 
-
-We are trying to make the sequence methodologies as type agnostic as possible, and this puts a limitation on the 
-functionalities that can be provided.
-
+This module represents biological sequences, they can be protein, rna or dna they depending on the kind of 
+sequence there are differnet functionalities available
 
 ## Sequence
 
@@ -21,62 +17,78 @@ alignment and searching.
 
 ### Basic Usage
 
+#### Proteins
+
 ```python
 from benchmate.sequence.sequence import Sequence
 
 # Create a sequence object
-seq = Sequence(name="my_sequence", sequence="MKLLPRGPAAAAAAVLLLLSLLLLPQVQA")
+seq = Sequence(name="my_sequence", sequence="MKLLPRGPAAAAAAVLLLLSLLLLPQVQA", 
+               seq_type="protein", features={"some":"features"})
 
-# Generate embeddings (protein sequences only)
-embeddings = seq.embeddings(
-    model="esmc_300m",  # Options: esmc_300m, esmc_g00m
-    normalize=False     # Whether to normalize embeddings
-)
+# perfom a blast search via ncbi api, local blast coming soon
+seq.blast("blasp", "NP")
+
+seq.subseq(start=10, end=100)
 
 # Introduce mutations
-mutated = seq.mutate(
+seq.mutate(
     position=3,   # 0-based position 
     to="A",       # Amino acid to mutate to
-    new_name="mutant_1"  # Optional new name
 )
-```
 
-### Multiple Sequence Alignment
+seq.insert(0, "MTMTMT")
+
+seq.delete(10, 5) #delete 5 aa starting from pos 10
+
+#search (exact search only) 
+seq.find("MKLL")
+
+#kmer counts (works on all types)
+seq.kmer_counts(5, normalize=True)
+
+seq.aa_composition()
+
+seq.molecular_weight()
+
+seq.isoelectric_point()
+
+seq.hydropathy_profile(window=9) #rolling window
+
+seq.to_fasta("my.fa")
+
+#or load from fasta
+Sequence.from_fasta("my.fa")
+
+
+```
+#### For DNA/RNA
 
 ```python
-# Run MSA using MMseqs2
-aligned = seq.msa(
-    database="/path/to/mmseqs/db",      # Pre-processed MMseqs2 database
-    destination="/path/for/output/",     # Output directory
-    output_name="my_msa.a3m",           # Output filename
-    cleanup=True                         # Remove temporary files
-)
+seq=Sequence(name="my_other_seq", sequence="ATATATAGACACAGTAGACAGTA", type="RNA")
+
+#calculate secondary structure (for rna)
+seq.vienna(temperature=37)
+
+seq.reverse_complement()
+seq.translate(to_stop=False) #dont stop once you reach a stop codon
+
+seq.gc_content(window=None) # or a rolling window
+seq.gc_skew(windog=None) # same as above
 ```
 
-### BLAST Search
+
+### SequenceList
+
+You can also have a list of sequence, if you load from a multifasta you will get one automatically, the only
+catch is you cannot mix and match sequence types and you cannot have a nested list of sequences. 
+
+In addition to all the list methods and all the sequence methods you can also perform MSA via ClustalOmega
 
 ```python
-# Search sequence using NCBI BLAST
-results = seq.blast(
-    program="blastp",      # BLAST program to use
-    database="nr",         # Database to search against  
-    threshold=10,          # E-value threshold
-    hitlist_size=50       # Maximum number of hits to return
-)
+from benchmate.sequence.sequence import SequenceList
+
+seq=Sequence.from_fasta("my.fa")
+
+seq.ClustalOmega()
 ```
-
-### File Operations
-
-```python
-# Write sequence to FASTA file
-seq.write("/path/to/output.fasta")
-```
-
-## Future directions:
-
-We are working on adding more functionalities to this module. While it is tempting to add a lot of stuff using some of the 
-latest deeplearning models and predict a bunch of things about a sequence that is well beyond the scope of this module and 
-will also cause the number of dependencies to explode. We are trying to keep this module light and focused on the core functionalities.
-
-For other predictions or advanced tasks we are aiming to use the [containers](../under_construction/containers.md) module. This will allow us and you
-to use whatever method and model you want and then re-create a Sequence object with the results. 

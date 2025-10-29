@@ -29,12 +29,14 @@ molecule.search(library, n=10, metric="tanimoto", fingerprint="ecfp4") #search f
 ```
 
 The library in the search method is an indexed usearch-molecule library. You can create one from a list of SMILES please see
-the git repository [here](https://github.com/ashvardanian/usearch-molecules) for more information.
+the git repository [here](https://github.com/ashvardanian/usearch-molecules) for more information. I have refactored this library
+extensively to be more expressive and usable [here](https://github.com/celalp/usearch-molecules).
 
 We have already created indexed libraries for the following datasets:
 
-- PubChem (~100 million molecules)
+- PubChem (~130 million molecules)
 - Enamine REAL (~7 billion molecules)
 - GB13M (~1.3 billion molecules)
+- ZINC (2.9 billion molecules) coming soon
 
 
