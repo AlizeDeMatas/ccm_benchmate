@@ -1,4 +1,4 @@
-from benchmate.sequence.sequence import Sequence---
+---
 layout: default
 title: Sequence
 parent: Modules
