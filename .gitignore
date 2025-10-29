@@ -16,5 +16,6 @@ projects
 build
 *.env
 notebooks
-demo
+*demo
+
 
