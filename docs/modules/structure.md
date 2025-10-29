@@ -30,7 +30,7 @@ from benchmate.structure.structure import Structure
 
 # Create from PDB file
 structure = Structure(pdb="/path/to/structure.pdb")
-# or
+# or download the pdb
 structure = Structure(pdb_id="1A2B", source="pdb", destination="/path/to/download/")
 
 ```
@@ -38,9 +38,6 @@ structure = Structure(pdb_id="1A2B", source="pdb", destination="/path/to/downloa
 ### Structure Analysis (very limited)
 
 ```python
-# calculate SASA (solvent accesible surface area)
-structure.calculate_sasa()
-
 # find pockets in structure using fpocket
 stucture.find_pockets()
 
@@ -48,6 +45,16 @@ stucture.find_pockets()
 structure.align(other_structure)
 
 # find contacts between chains only applies to pdb files with 2 chains (does not have to be proteins)
-contacts=structure.find_contacts(chain_id1="A", chain_id2="B")
+structure.find_contacts(chain_id1="A", chain_id2="B")
+
+# calulcate tm score using US-align
+structure.tm_score(other_structure)
+```
+
+You can also perform fancy indexing to get chains and atoms:
+
+```python
+# get the first 100 atoms of chain A
+structure["A"][0:100]
 ```
 

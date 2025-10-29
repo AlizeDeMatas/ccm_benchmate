@@ -1,6 +1,6 @@
 ---
 layout: default
-title: BioGrid
+title: IntAct
 parent: APIs
 grand_parent: Modules
 nav_order: 7

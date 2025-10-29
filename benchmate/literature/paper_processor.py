@@ -143,7 +143,7 @@ class PaperProcessor:
             generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False)
         return output_text
 
-    def pipeline(self, papers, extract=True, embed_text=True, embed_images=True, interpret_images=False, embed_iterpretations=False):
+    def pipeline(self, papers, extract=True, embed_text=True, embed_images=True, interpret_images=False):
         """
         whole paper processing pipeline
         :param papers: list of papers see literature.paper for details
@@ -251,23 +251,6 @@ class PaperProcessor:
                         paper.info.table_interpretation.append(self.interpret_image(table,
                                                                                     self.config["vl_model"]["table_prompt"], model, processor))
 
-
-        if embed_iterpretations:
-            if not interpret_images:
-                raise ValueError("If you want to embed interpretations you must also interpret images")
-
-            # ideally this would not need to re-loaded and all the models will be available all the time
-            # but this will save a substantial amount of vram at the cost of couple of seconds of load time
-            if "config" in self.config["text_embedding_model"].keys():
-                text_embedding_kwargs = self.config["text_embedding_model"]["config"]
-
-                model = SentenceTransformer(self.config["text_embedding_model"]["name"],
-                                                            **text_embedding_kwargs)
-            else:
-                model = SentenceTransformer(self.config["text_embedding_model"]["name"])
-            # figure and paper interpretations are not chunked, they are embeeded as is, this
-            # is not the best but also not that important since the image is embeeded as well and the full text is
-            # chunked and embeded
 
             for paper in papers:
                 paper.info.figure_interpretation_embeddings = []
