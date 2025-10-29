@@ -14,39 +14,31 @@ as well as their own data. There are several modules that can be used independen
 project (see [project module](project.md)). 
 
 This package is being actively developed and there may be breaking changes as well as additional requirements. That said, a
-few of the modules can be used right now (APIs, genome and literature) as standalone modules or can be used together. There are
+few of the modules can be used right now (APIs, genome and literature among others) as standalone modules or can be used together. There are
 quite a few modules that are responsible to different functionalities. Each of these modules have their own page so please see 
 them for detailed instructions about how to use them. 
 
-## APIs module 
+We hope that this module makes your life a little easier by streamlining your data collection from publicly available sources in 
+your research. Below is a brief description of the modules that are planned:
 
-The goal of the module is to provide a unified(-ish) interface to different biological databases. The module has interfaces
-the following databases:
++ APIs: A collection of classes for different prominent public databases (e.g. uniprot, ncbi etc.) for easy access and query.
++ Literature: A pythonic way to search and process scientifc papers from pubmed and arxiv
++ Sequence: A pythonic way to represent biological sequences (DNA, RNA, protein)
++ Structure: A module to represent 3D biological structures from RSCB and Alphafold DB
++ Molecule: A module to represent small drug-like molecules
++ Genome: A stable, fast and memory efficient way to interact with your genome(s)
 
-+ [Uniprot](unprot.org): This is a database of protein sequences and annotations. The module provides a way to search for proteins
-and their respective annotations. The entirety of the Uniprot database can be searched using the module, including variation
-isoforms and mutagenesis endpoints. These are then integrated into a single dictionary that can be used to access the data.
-+ [NCBI](ncbi.nlm.nih.gov): This is a database of nucleotide sequences and annotations. The module provides a way to search for all 
-of the NCBI databases, including nucleotide sequences, protein sequences, gene annotations, and more. While you can search pubmed
-using this module, the [literature module](literature.md) is better suited for that purpose (see below). 
-+ [Ensembl](ensembl.org): This is a database of genomic sequences and annotations. The module provides a way to search for gene variants
-mapping between different coordinates systems, and more. The module also provides a way to search for genes and their annotations,
-annotate variants, query cross-references from different databases and more. 
-+ [stringdb](stringdb.org): This is a database of protein-protein interactions. The module provides a way to search for protein-protein interactions. 
-Additionally you can use the Biogrid and IntAct endpoints under others to perform similar queries.
-+ [reactome](reactome.org): Reactome is a comprehensive database of biolgicla reaction, proteins and pathways. You can query many of the endpoints using 
-this submodule
-+ [rnacentral](rnacentral.org): RnaCentral *the* non-coding RNA sequence database, this is different from the NCBI genes in that it is dedicated to non-coding
-sequences. 
-+ [BioGrid]("https://thebiogrid.org/"): Biogrid is a biomedical interaction repository that contains information about protein-protein and protein-chemical 
-interactions that are mostly manually curated at different levels. You will need a free API key to be able to use this module. You can obtain one [here](https://webservice.thebiogrid.org/)
-+ [IntAct](https://www.ebi.ac.uk/intact/home): Simlar to BioGrid this database contains interaction data. You can query this database to arbitrary depth
-to obtain information about different biological complexes and much more. 
-+ [AlphaGenome](https://www.alphagenomedocs.com/index.html): AlphaGenome is a server running the latest alphagenome models
-for variant, sequence and genomic interval consequence/feature predictions. 
+Additionally, we have created several ligthweight python modules to work with different biological ideas such as:
 
-You can see a detailed overview of each of the modules in the [APIs](apis.md) section. If you have suggestions for an API please create an issue with 
-a description of the request and why that is important for your research and others.
++ Ranges and GenomicsRanges: Range operations over single and collections of ranges
++ Variant: A pythonic way to represent genomic variations
+
+Finally, we aim to collect all of this information in a single database that can be queries via sql or natural language. 
+
+While still under construction, the final modules (project and knowledgebase) will collect information from all the modules
+described above and make it searchable using sql, keywords and natural language. 
+
+
 
 ## Literature module:
 
@@ -67,21 +59,6 @@ are similarly processed to the full text data. All of this can be permanantly st
 Depending on your use case you can also use a description of your research interest to filter papers based on their abstracts to save on compute
 time and resources. Please see the literature module [documentation](literature.md) for more information and how to use these features. 
 
-## Genome Module
-
-While it is possible to use the Ensembl API class to query genomic ranges and intervals for instances where you are interested in only one genome (and its annotations) 
-for the whole project and you will need to make repeated queries it would be more performant (and nicer to ther people using the Ensembl API) to 
-generate a data structure that can represent genomic/proteomic information. 
-
-This is were the genom module comes into play. The `genome.genome.Genome` class takes a genome fasta file and a gtf file and creates a database of 
-genomic regions. These regions can then be queried by genes, transcripts, exons, cdss, introns and utrs depending on the availability of these annotation 
-types in the gtf file. You can also extract sequences from the genome fasta file for any arbitrary genome interval (see Ranges and GenomicRanges below). 
-
-The genome module also supports saving these results to a database, whether this is your knowledge base or any other kind of SQL databse (could even be in-memory sqlite). 
-Each genome instance can be created and stored independently so if your analysis/project requires multiple genomes (or multiple annotations of the same fasta file, 
-these are treated as different genomes) you can do that out of the box. 
-
-Finally for your own work you can add arbitrary annotations to each of the tables in `JSON` format and then query them later. 
 
 ## Sequence Module
 
