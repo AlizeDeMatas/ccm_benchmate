@@ -1,0 +1,217 @@
+import subprocess
+import os
+import tempfile
+import shutil
+from typing import Union, List, Dict, Optional
+
+
+class FoldSeek:
+    """
+    A Python wrapper for FoldSeek with support for:
+    - Querying PDB structures (single or directory) against a database → A3M + TSV output
+    - Creating FoldSeek databases (standard or GPU-padded)
+    - GPU acceleration (if DB supports it)
+    - Flexible extra arguments
+    """
+
+    def __init__(self, foldseek_bin: str = "foldseek"):
+        """
+        Initialize the wrapper.
+
+        Args:
+            foldseek_bin: Path to the FoldSeek executable (default: assumes in PATH)
+        """
+        self.foldseek_bin = foldseek_bin
+        self._check_foldseek()
+
+    def create_database(
+        self,
+        pdb_dir: str,
+        db_path: str,
+        gpu_padded: bool = False,
+        extra_args: Optional[Union[List[str], Dict[str, str]]] = None,
+        tmp_dir: Optional[str] = None
+    ) -> str:
+        """
+        Create a FoldSeek database from a directory of PDB/CIF files.
+
+        Args:
+            pdb_dir: Directory containing .pdb, .cif, .pdb.gz, .cif.gz files
+            db_path: Output database prefix (without extension)
+            gpu_padded: If True, create padded database for GPU
+            extra_args: Additional arguments as list or dict
+            tmp_dir: Temporary directory (if None, system temp is used)
+
+        Returns:
+            Path to created database
+        """
+        if not os.path.isdir(pdb_dir):
+            raise NotADirectoryError(f"Input directory not found: {pdb_dir}")
+
+        if os.path.exists(db_path):
+            raise FileExistsError(f"Database path already exists: {db_path}")
+
+        os.makedirs(os.path.dirname(db_path) or '.', exist_ok=True)
+
+        with tempfile.TemporaryDirectory(dir=tmp_dir) as tmp:
+            cmd = ["createdb", pdb_dir, db_path]
+
+            if gpu_padded:
+                cmd += ["--pad-db"]
+
+            cmd += self._process_extra_args(extra_args)
+            self._run_foldseek(cmd, check=True)
+
+        print(f"Database created: {db_path}")
+        return db_path
+
+    def search(
+        self,
+        query_pdb: str,
+        target_db: str,
+        output_a3m: str,
+        output_tsv: str,
+        use_gpu: bool = False,
+        sensitivity: float = 7.5,
+        max_accept: int = 100000,
+        evalue: float = 1e-3,
+        extra_search_args: Optional[Union[List[str], Dict[str, str]]] = None,
+        extra_result2msa_args: Optional[Union[List[str], Dict[str, str]]] = None,
+        tmp_dir: Optional[str] = None
+    ):
+        """
+        Run FoldSeek search and generate A3M + TSV from a PDB query.
+
+        Args:
+            query_pdb: Path to query PDB/CIF file
+            target_db: FoldSeek database to search against
+            output_a3m: Output A3M file path
+            output_tsv: Output TSV file path
+            use_gpu: Enable GPU (FoldSeek will error if DB not padded or no GPU)
+            sensitivity: Search sensitivity (higher = slower, more sensitive)
+            max_accept: Maximum number of alignments to accept
+            evalue: E-value threshold
+            extra_search_args: Extra args for `search`
+            extra_result2msa_args: Extra args for `result2msa`
+            tmp_dir: Custom temporary directory
+
+        Note:
+            GPU errors are caught and reported (FoldSeek handles compatibility).
+        """
+        if not os.path.isfile(query_pdb):
+            raise FileNotFoundError(f"Query PDB file not found: {query_pdb}")
+
+        # Create temporary working directory
+        work_dir = tempfile.mkdtemp(dir=tmp_dir)
+        try:
+            query_db = os.path.join(work_dir, "query_db")
+            aligned_db = os.path.join(work_dir, "aligned")
+            result_db = os.path.join(work_dir, "result")
+            a3m_tmp = os.path.join(work_dir, "result.a3m")
+
+            # Step 1: Create query DB from PDB
+            self._run_foldseek(["createdb", query_pdb, query_db], check=True)
+
+            # Step 2: Search
+            search_args = [
+                "search",
+                query_db,
+                target_db,
+                result_db,
+                work_dir,
+                "--alignment-type",
+                "1"
+            ]
+
+            # Common search options
+            search_args += [
+                "-s", str(sensitivity),
+                "--max-accept", str(max_accept),
+                "-e", str(evalue)
+            ]
+
+            if use_gpu:
+                search_args += ["--gpu", "1"]
+
+            search_args += self._process_extra_args(extra_search_args)
+
+            # Run search with GPU error handling
+            try:
+                self._run_foldseek(search_args, check=True)
+            except subprocess.CalledProcessError as e:
+                error_msg = e.stderr.decode() if e.stderr else str(e)
+                if use_gpu and ("GPU" in error_msg or "cuda" in error_msg.lower()):
+                    print(f"GPU search failed: {error_msg}")
+                    print("Retrying without GPU...")
+                    search_args = [arg for arg in search_args if arg not in ("--gpu", "1")]
+                    self._run_foldseek(search_args, check=True)
+                else:
+                    raise
+
+            self._run_foldseek([
+                "align",
+                query_db,
+                target_db,
+                result_db,
+                aligned_db,
+                "-a"
+            ], check=True)
+
+            # Step 3: Convert result to MSA (A3M)
+            result2msa_args = [
+                "result2msa",
+                query_db,
+                target_db,
+                aligned_db,
+                a3m_tmp
+            ]
+            result2msa_args += self._process_extra_args(extra_result2msa_args)
+            self._run_foldseek(result2msa_args, check=True)
+
+            # Step 4: Extract TSV
+            self._run_foldseek([
+                "convertalis",
+                query_db,
+                target_db,
+                aligned_db,
+                output_tsv,
+                "--format-output",
+                "query,target,fident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue,bits,qtmscore,ttmscore,alntmscore,rmsd,lddt"
+            ], check=True)
+
+            # Step 5: Copy A3M to final output
+            if not os.path.exists(a3m_tmp):
+                raise FileNotFoundError(f"A3M file not generated: {a3m_tmp}")
+            shutil.copy(a3m_tmp, output_a3m)
+
+        finally:
+            if not tmp_dir:  # Only remove if we created it
+                shutil.rmtree(work_dir, ignore_errors=True)
+
+        return output_a3m, output_tsv
+
+    # === Helper Methods ===
+
+    def _process_extra_args(self, extra_args) -> List[str]:
+        """Convert dict or list of extra args to list of strings."""
+        if extra_args is None:
+            return []
+        elif isinstance(extra_args, dict):
+            return [str(item) for k, v in extra_args.items() for item in (f"--{k}", str(v))]
+        elif isinstance(extra_args, (list, tuple)):
+            return [str(x) for x in extra_args]
+        else:
+            raise TypeError("extra_args must be dict or list/tuple")
+
+    def _check_foldseek(self):
+        """Check if FoldSeek is available."""
+        result = subprocess.run([self.foldseek_bin, "version"], capture_output=True, text=True)
+        if result.returncode != 0:
+            raise EnvironmentError(f"FoldSeek not found or not working: {self.foldseek_bin}")
+
+    def _run_foldseek(self, args: List[str], **kwargs) -> subprocess.CompletedProcess:
+        """Run FoldSeek command and return result."""
+        cmd = [self.foldseek_bin] + args
+        print(f"Running: {' '.join(cmd)}")  # Optional debug
+        return subprocess.run(cmd, **kwargs)
+

@@ -1,20 +1,7 @@
-
 import pandas as pd
 from Bio import SeqRecord, Seq
 
 
-# These should have make db and __call__ methods
-class Blast:
-    pass
-
-class MMseqs2:
-    pass
-
-class FoldSeek:
-    pass
-
-class FoldDisco:
-    pass
 
 class SinglePassFastaIndex:
     def __init__(self, fasta_path, delim="_"):
@@ -67,7 +54,7 @@ class SinglePassFastaIndex:
 
             return SeqRecord(Seq("".join(seq_lines)), id=key, description="")
 
-class MSA:
+class Alignment:
     def __init__(self, table, alignment, cols):
         self.table = pd.read_csv(table, sep="\t", names=cols)
         self.alignment = SinglePassFastaIndex(alignment)

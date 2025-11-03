@@ -1,0 +1,186 @@
+import subprocess
+import os
+import tempfile
+import shutil
+from typing import Union, List, Dict, Optional
+import uuid
+
+from benchmate.alignment.utils import *
+
+
+class MMSeqs:
+    """
+    Corrected MMseqs2 wrapper:
+    - Always creates query DB via `createdb`
+    - Supports single and paired alignment (`pairaln`)
+    - GPU with padded DB
+    - Flexible extra args
+    """
+
+    def __init__(self, mmseqs_bin: str = "mmseqs"):
+        self.mmseqs_bin = mmseqs_bin
+        self._check_mmseqs()
+
+    def create_database(
+        self,
+        fasta_path: str,
+        db_path: str,
+        gpu_padded: bool = False,
+        extra_args: Optional[Union[List[str], Dict[str, str]]] = None,
+    ) -> str:
+        """Create target database (optionally padded for GPU)."""
+        if os.path.exists(db_path):
+            raise FileExistsError(f"Database exists: {db_path}")
+
+        os.makedirs(os.path.dirname(db_path) or '.', exist_ok=True)
+
+        cmd = ["createdb", fasta_path, db_path]
+        if gpu_padded:
+            cmd += ["--pad-db"]
+        cmd += self._process_extra_args(extra_args)
+
+        self._run_mmseqs(cmd, check=True)
+        return db_path
+
+    def search(
+        self,
+        query: Union[str, List[str]],
+        target_db: str,
+        output_a3m: str,
+        output_tsv: str,
+        use_gpu: bool = False,
+        sensitivity: float = 5.7,
+        max_seqs: int = 1000,
+        evalue: float = 1e-3,
+        extra_search_args: Optional[Union[List[str], Dict[str, str]]] = None,
+        extra_result2msa_args: Optional[Union[List[str], Dict[str, str]]] = None,
+        tmp_dir: Optional[str] = None
+    ):
+        """
+        Full pipeline: query → search/pairaln → A3M + TSV
+        """
+        if isinstance(query, str):
+            queries = [query]
+        elif isinstance(query, (list, tuple)):
+            queries = list(query)
+            if len(queries) not in (1, 2):
+                raise ValueError("Query list must have 1 or 2 sequences.")
+        else:
+            raise TypeError("Query must be str or list of 1-2 sequences.")
+
+        is_paired = len(queries) == 2
+        work_dir = tempfile.mkdtemp(dir=tmp_dir)
+
+        try:
+            # Paths
+            query_fasta = os.path.join(work_dir, "query.fasta")
+            query_db = os.path.join(work_dir, "query_db")
+            result_db = os.path.join(work_dir, "result")
+            a3m_tmp = os.path.join(work_dir, "result.a3m")
+
+            # Step 1: Write query FASTA
+            self._write_query_fasta(queries, query_fasta, paired=is_paired)
+
+            # Step 2: Create query DB
+            self._run_mmseqs(["createdb", query_fasta, query_db], check=True)
+
+            # Step 3: Search or Pairaln
+            search_args = [
+                "search",
+                query_db,
+                target_db,
+                result_db,
+                work_dir
+            ]
+            search_args += [
+                "--max-seqs", str(max_seqs),
+                "-s", str(sensitivity),
+                "-e", str(evalue)
+            ]
+
+            if use_gpu:
+                search_args += ["--gpu", "1"]
+
+            search_args += self._process_extra_args(extra_search_args)
+
+            try:
+                self._run_mmseqs(search_args, check=True)
+            except subprocess.CalledProcessError as e:
+                err = e.stderr.decode() if e.stderr else ""
+                if use_gpu and ("GPU" in err or "cuda" in err.lower()):
+                    print(f"GPU failed: {err}\nRetrying on CPU...")
+                    search_args = [a for a in search_args if a not in ("--gpu", "1")]
+                    self._run_mmseqs(search_args, check=True)
+                else:
+                    raise
+
+            # Step 4: result2msa → A3M
+            if is_paired:
+                pairaln_args=[
+                    "pairaln",
+                    query_db,
+                    target_db,
+                    result_db,
+                    a3m_tmp
+                ]
+                self._run_mmseqs(pairaln_args, check=True)
+            else:
+
+                result2msa_args = [
+                    "result2msa",
+                    query_db,
+                    target_db,
+                    result_db,
+                    a3m_tmp,
+                ]
+                result2msa_args += self._process_extra_args(extra_result2msa_args)
+                self._run_mmseqs(result2msa_args, check=True)
+
+            # Step 5: convertalis → TSV
+            self._run_mmseqs([
+                "convertalis",
+                query_db,
+                target_db,
+                result_db,
+                output_tsv,
+                "--format-output", "query,target,pident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue,bits"
+            ], check=True)
+
+            # Step 6: Output A3M
+            shutil.copy(a3m_tmp, output_a3m)
+
+        finally:
+            if not tmp_dir:
+                shutil.rmtree(work_dir, ignore_errors=True)
+
+        return output_a3m, output_tsv
+
+    def _write_query_fasta(self, sequences: List[str], path: str, paired: bool = False):
+        with open(path, 'w') as f:
+            if paired:
+                header = f">query_{uuid.uuid4().hex[:8]}"
+                f.write(header + "\n" + sequences[0] + "\n")
+                f.write(header + "\n" + sequences[1] + "\n")
+            else:
+                for i, seq in enumerate(sequences):
+                    f.write(f">query_{i}\n{seq}\n")
+
+    def _process_extra_args(self, extra_args) -> List[str]:
+        if extra_args is None:
+            return []
+        if isinstance(extra_args, dict):
+            return [f"--{k} str(v)" for k, v in extra_args.items()]
+        elif isinstance(extra_args, (list, tuple)):
+            return [str(x) for x in extra_args]
+        else:
+            raise TypeError("extra_args must be dict or list/tuple")
+
+    def _check_mmseqs(self):
+        result = subprocess.run([self.mmseqs_bin, "version"], capture_output=True, text=True)
+        if result.returncode != 0:
+            raise EnvironmentError(f"MMseqs2 not found: {self.mmseqs_bin}")
+
+    def _run_mmseqs(self, args: List[str], **kwargs) -> subprocess.CompletedProcess:
+        cmd = [self.mmseqs_bin] + args
+        return subprocess.run(cmd, **kwargs)
+
