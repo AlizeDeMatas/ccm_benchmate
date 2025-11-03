@@ -25,7 +25,7 @@ class Reactome()
 def __init__()
 ```
 
-constructor reacotme class, there are not parameters, while getting constructed obtains the latest information from the api
+constructor reactome class, there are no parameters, while getting constructed obtains the latest information from the api
 
 <a id="reactome.Reactome.search"></a>
 
@@ -71,11 +71,11 @@ response dict or an error
 def get_details(id)
 ```
 
-get detailed information about a reactome entry, you need the reacotme id
+get detailed information about a reactome entry, you need the reactome id
 
 **Arguments**:
 
-- `id`: reacome id
+- `id`: reactome id
 
 **Returns**:
 
@@ -133,7 +133,7 @@ class UniProt()
 def __init__()
 ```
 
-constructor for the UniProt class, which is used to gather data from the UniProt API. and process it in a readable format.
+constructor for the UniProt class, which is used to gather data from the UniProt API and process it in a readable format.
 
 <a id="uniprot.UniProt.search"></a>
 
@@ -143,17 +143,17 @@ constructor for the UniProt class, which is used to gather data from the UniProt
 def search(query, page_size=500)
 ```
 
-free text query for the uniprot api
+free text query for the UniProt API
 
 **Arguments**:
 
-- `query`: text query, anything that can be searched on the uniprot website
+- `query`: text query, anything that can be searched on the UniProt website
 - `page_size`: number of items per request, this is not the total number of results, it will get results until
 there are no more pages
 
 **Returns**:
 
-a dataframe of name, uniprot id, gene name, organism and a brief description
+a dataframe of name, UniProt ID, gene name, organism and a brief description
 
 <a id="uniprot.UniProt.get_info"></a>
 
@@ -169,11 +169,11 @@ def get_info(uniprot_id,
              get_isoforms=True)
 ```
 
-gather all the information about a specific entry described by the uniprot id
+gather all the information about a specific entry described by the UniProt ID
 
 **Arguments**:
 
-- `uniprot_id`: uniprot accession
+- `uniprot_id`: UniProt accession
 - `consolidate_refs`: whether to consolidate all the references from the different sections into a single list
 - `get_variations`: whether to call the variations api
 - `get_interactions`: whether to call the interactions api
@@ -232,11 +232,11 @@ class Interactions()
 def __init__(uniprot)
 ```
 
-query the uniprot API for interaction data
+query the UniProt API for interaction data
 
 **Arguments**:
 
-- `uniprot`: uniprot class
+- `uniprot`: UniProt class
 
 <a id="uniprot.Isoforms"></a>
 
@@ -254,7 +254,7 @@ class Isoforms()
 def __init__(uniprot)
 ```
 
-query the uniprot API for isoform data not all proteins have isoforms and there will be warnings if none are found
+query the UniProt API for isoform data, not all proteins have isoforms and there will be warnings if none are found
 
 **Arguments**:
 
@@ -276,13 +276,13 @@ class Mutagenesis()
 def __init__(uniprot)
 ```
 
-query the uniprot API for mutagenesis data this is different than variations, these are not variations that are
+query the UniProt API for mutagenesis data this is different than variations, these are not variations that are
 
 seen in the wild but from experimental data
 
 **Arguments**:
 
-- `uniprot`: uniprot class
+- `uniprot`: UniProt class
 
 <a id="others"></a>
 
@@ -376,7 +376,7 @@ class AlphaGenome()
 def __init__(access_key)
 ```
 
-Create an AlphaGenome object. this is used to query the alhpagenome api, but unlike other api calls this does
+Create an AlphaGenome object. this is used to query the alphagenome api, but unlike other api calls this does
 
 not return and api_call dataclass instance, instead it returns depending on the method, a variant, a genomic_range or
 a dataframe will be returned
@@ -421,7 +421,7 @@ def predict_sequence(sequences,
                      organism="human")
 ```
 
-predict features of a list of sequences, if you have only one you should pass [sequence] a
+predict features of a list of sequences, if you have only one you should pass [sequence]
 
 **Arguments**:
 
@@ -429,11 +429,11 @@ predict features of a list of sequences, if you have only one you should pass [s
 - `ontology_terms`: which ontology terms to use if you do not specify any we'll use all of them
 - `interval_size`: interval size to consider, default 2KB but if needs to be longer than your sequence
 - `output_types`: see self.ouput_types or get them all (if none)
-- `organism`: which organism to consider, default human the other option is mouse, that's it.
+- `organism`: which organism to consider, default human the other option is mouse, that's it
 
 **Returns**:
 
-a list of benchmate.sequences.Sequence objects same ones with the features property filled in
+a list of benchmate.sequences.Sequence objects, the same ones with the features property filled in
 
 <a id="others.AlphaGenome.predict_interval"></a>
 
@@ -451,7 +451,7 @@ predict things about an interval,
 
 **Arguments**:
 
-- `granges`: a list of granges or a grageges list object, if you have only one grange then pass it as a list [grange]
+- `granges`: a list of granges or a granges list object, if you have only one grange then pass it as a list [grange]
 - `ontology_terms`: which ontology terms to use
 - `interval_size`: interval size to consider, default 2KB, it needs to be longer then len(grange)
 - `output_types`: see above
@@ -548,8 +548,8 @@ constructor for StringDb class
 
 **Arguments**:
 
-- `name`: some sort of identifier for the protein it support uniprot, gene name, gene name synonyms
-- `species`: species id for the protein, default is human, you can taxanomy id from ncbi
+- `name`: some sort of identifier for the protein it support UniProt, gene name, gene name synonyms
+- `species`: species id for the protein, default is human, you can taxanomy id from NCBI
 - `network_depth`: how deep you want to go in the network, default is 1, if more than 1 it will re search all the
 results for the next depth this will increase the time it takes to get the network and the number will increase exponentially
 
@@ -653,7 +653,7 @@ list of summary records
 def fetch(db, id)
 ```
 
-thin wrapper around the NCBI Entrez efetch
+thin wrapper around the NCBI Entrez fetch
 
 **Arguments**:
 
@@ -747,7 +747,7 @@ publications (pmid and pmcid) or translation which converts the notations to oth
 
 **Returns**:
 
-returns a detailed dict with the variation information depending on the paramters described above
+returns a detailed dict with the variation information depending on the parameters described above
 
 <a id="ensembl.Ensembl.vep"></a>
 
@@ -807,11 +807,11 @@ def sequence(id,
              sequence_type="genomic")
 ```
 
-Get sequence information from the Ensembl REST API for a given ensembl id
+Get sequence information from the Ensembl REST API for a given Ensembl id
 
 **Arguments**:
 
-- `id`: ensembl id, because the ids also specify the species you do not need to specify the species
+- `id`: Ensembl id, because the ids also specify the species you do not need to specify the species
 - `trim_end`: trim this many nucleotides from the end
 - `trim_start`: trim this many nucleotides from the start
 - `expand_3`: expand this many nucleotides from the 3' end not compatible with trim_end
@@ -832,11 +832,11 @@ multiple sequences are returned as a dataframe
 def xrefs(id, species="human", external=False)
 ```
 
-Get cross references from the Ensembl REST API for a given ensembl id
+Get cross references from the Ensembl REST API for a given Ensembl id
 
 **Arguments**:
 
-- `id`: ensembl id, because the ids also specify the species you do not need to specify the species
+- `id`: Ensembl id, because the ids also specify the species you do not need to specify the species
 
 **Returns**:
 
@@ -851,11 +851,11 @@ a dict of cross references these can be used to get the ids from other databases
 def mapping(id, start, end, type="cDNA")
 ```
 
-Get mapping information from the Ensembl REST API for a given ensembl id, convert between cDNA, CDS and protein
+Get mapping information from the Ensembl REST API for a given Ensembl id, convert between cDNA, CDS and protein
 
 **Arguments**:
 
-- `id`: ensembl id, because the ids also specify the species you do not need to specify the species
+- `id`: Ensembl id, because the ids also specify the species you do not need to specify the species
 - `start`: start position of the range
 - `end`: end position of the range
 - `type`: type of mapping, cDNA, CDS or protein
@@ -940,7 +940,7 @@ divisions, species and consequences that are available in the api
 def api_call(func)
 ```
 
-add metadata to an api call and return the apicall dataclass instance insteaed of just a dict
+add metadata to an api call and return the apicall dataclass instance instead of just a dict
 
 **Arguments**:
 
@@ -974,7 +974,7 @@ rerun the api call with the same parameters, useful if the api call failed or if
 **Arguments**:
 
 - `access_key`: if the api requires an access key like alphagenome or biogrid
-- `email`: if the api requires an email like ncbi
+- `email`: if the api requires an email like NCBI
 
 **Returns**:
 

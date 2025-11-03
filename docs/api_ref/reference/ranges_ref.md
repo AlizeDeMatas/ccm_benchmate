@@ -240,7 +240,7 @@ find overlapping pair indices between two RangesLists, if other is none that mea
 
 - `other`: other rangeslist
 - `type`: what kind of overlap to check for, see Range.overlaps for options
-- `return_ranges`: whehter to return a tuple of indices or a tuple of ranges
+- `return_ranges`: whether to return a tuple of indices or a tuple of ranges
 
 **Returns**:
 
