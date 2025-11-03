@@ -22,6 +22,8 @@ folders are in a partition with more storage.
 
 ## Installing Benchmate
 
+### Using the installation script
+
 This project has a decent number of dependencies, to overcome some hurdles we have created an installation script but this 
 has only been tested on Linux systems. 
 
@@ -69,10 +71,58 @@ conda activate benchmate
 pg_ctl -D <database_dir> -l <database_dir>/logfile start
 ```
 
+### Manual installation (reccomended at the moment)
+
+The `install_benchmate.sh` has not gone through rigourous testing. Currently if you want to install the package you can follow these steps. 
+
+1. Install conda (same as above)
+2. Clone the repo (still the same)
+3. create a conde environment:
+
+The script is designed to do this for you but it is a rather simple step:
+
+```bash
+cd ccm_bencmate
+
+conda create env -f environmemt.yaml
+```
+
+This will create a conda envrionment and intall all the non-python dependencies. It currently does not include postgres because 
+the functionalities related to the knowledgebase is still under heavy development. You will still be able to use apis, genome, 
+structure, sequence, molecule, ranges, genomic_ranges and literature modules. Whenever applicable they can interact with each other. All the 
+class instances save for genome are pickleable. Unless you create an in-memory sqlite database there is no need to pickle a genome
+instance. All the information is saved as a database. 
+
+After creating the environment, you can install python dependencies
+
+```bash
+pip install -r requirements. txt
+```
+
+After you install all the dependencies you can install benchmate. Assuming you are inside the ccm_bencmate root directory 
+(where the `setup.py` file is) 
+
+```bash
+pip install .
+```
+
+## A Quick note about model selection
+
+You can see in the config.py file that we have made some decisions about which models to use as a default in the package. 
+These decisions were made with a couple of important considerations in ming. 
+
+1. The models need to be robust and actually follow instructions (not every instruction tuned model does that or does it reliably)
+2. They need to be small enough to be run in <40GB of VRAM (you can probably run benchmate no problem with a GTX5090 that you can buy at a computer hardware store)
+3. They are fast(-ish), this was the main consideration for choosing a static model for semantic chunking. 
+
 ## Containers
 
 We are working on creating docker containers and a `docker_compose.yaml` file to make this a less painful process. 
 Once those developments are done this documentation will be updated. 
 
+## Conda package
 
-Please create an issue with all the error messages if you run into issues. 
+Similarly, once all the core components are completed we are planning on creating a conda package that would make this 
+installation process a single line of code. 
+
+Please create an issue with all the error messages if you run into problems. 
