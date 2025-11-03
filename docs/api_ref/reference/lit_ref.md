@@ -62,7 +62,7 @@ class LitSearch()
 def __init__(pubmed_api_key=None, email=None, sort_by="relevance")
 ```
 
-create the ncessary framework for searching
+create the necessary framework for searching
 
 **Arguments**:
 
@@ -266,7 +266,7 @@ text, figures and tables as pillow images
 def text_embeddings(chunker, model, text, splitting_strategy="semantic")
 ```
 
-genereate text embeddings using a chunking strategy and an embedding model. The model is a huggingface senntence transformer
+genereate text embeddings using a chunking strategy and an embedding model. The model is a huggingface sentence transformer
 
 and the chunker is a chonkie semantic chunker
 

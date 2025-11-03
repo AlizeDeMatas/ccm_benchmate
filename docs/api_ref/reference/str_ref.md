@@ -81,7 +81,7 @@ for a chain convert the structure to 3di
 def sequence()
 ```
 
-extract the aa sequence from the pdb, if there are gap there will be - if there are uknown aa there will be an X
+extract the aa sequence from the pdb, if there are gap there will be - if there are unknown aa there will be an X
 
 <a id="structure.Structure.tm_score"></a>
 
@@ -116,7 +116,7 @@ Get contacts between two chains in the structure.
 - `chain_id1`: chain 1
 - `chain_id2`: chain 2
 - `cutoff`: distance cutoff to be called contacting default 5A
-- `level`: if "atom" return the contacting atom, if residue return the resdiues
+- `level`: if "atom" return the contacting atom, if residue return the residues
 
 **Returns**:
 

@@ -158,7 +158,7 @@ return all the 3' utrs for a transcript or a list of transcripts
 **Returns**:
 
 a genomic ranges dict object with transcript ids as keys and GenomicRangesList as values, the utrs are not described as
-separate exons but the exons are merged into one if that utr spans multple exons. Additionally if the utrs ends in the middle
+separate exons but the exons are merged into one if that utr spans multiple exons. Additionally if the utrs ends in the middle
 of an exon the utr will end there.
 
 <a id="genome.Genome.five_utr"></a>
@@ -218,7 +218,7 @@ return: a genomic ranges dict object, if not grouped by transcript the keys will
 def get_sequence(genomic_range, type='genome')
 ```
 
-Get the sequence of a genomic range. This takes a single genomc range you can iterate over a GenomicRangeList or GenomicRangeDict
+Get the sequence of a genomic range. This takes a single genomic range you can iterate over a GenomicRangeList or GenomicRangeDict
 
 **Arguments**:
 

@@ -28,7 +28,7 @@ your research. Below is a brief description of the modules that are planned:
 + Molecule: A module to represent small drug-like molecules
 + Genome: A stable, fast and memory efficient way to interact with your genome(s)
 
-Additionally, we have created several ligthweight python modules to work with different biological ideas such as:
+Additionally, we have created several lightweight python modules to work with different biological ideas such as:
 
 + Ranges and GenomicsRanges: Range operations over single and collections of ranges
 + Variant: A pythonic way to represent genomic variations
@@ -36,7 +36,7 @@ Additionally, we have created several ligthweight python modules to work with di
 Finally, we aim to collect all of this information in a single database that can be queries via sql or natural language. 
 
 While still under construction, the final modules (project and knowledgebase) will collect information from all the modules
-described above and make it searchable using sql, keywords and natural language. These modules inlcude
+described above and make it searchable using sql, keywords and natural language. These modules include
 
 + Container Runner: use one of our pre-configured containers or build your own to run arbitrary pipelines. This is to make
 sure that there are no dependency conflicts and you don't spend days trying to find that perfect combination of versions that
