@@ -205,7 +205,7 @@ Returns an array of length L - window + 1 (centered windows).
 def mutate(position, to, new_name=None, keep_features=True)
 ```
 
-Mutata a specific location to something else, use caution we are not checking for validitiy that is you can
+Mutate a specific location to something else, use caution we are not checking for validity, that is you can
 insert arbitrary things
 
 <a id="sequence.Sequence.insert"></a>
@@ -324,7 +324,7 @@ def blast_search(program,
                  hitlist_size=50)
 ```
 
-perfrom blast search via ncbi api this is not local blast
+perfrom blast search via NCBI api this is not local blast
 
 **Arguments**:
 
