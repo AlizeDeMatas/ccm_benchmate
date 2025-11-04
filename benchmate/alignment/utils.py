@@ -4,13 +4,25 @@ from Bio import SeqRecord, Seq
 
 
 class SinglePassFastaIndex:
+    """
+    this is a tiny class to access MSA a3m files, these files look like fasta but they are not reall so tools
+    that deal with them have issues. This is not really a faster solution but a solution.
+    """
     def __init__(self, fasta_path, delim="_"):
+        """
+        constructor, the goal is to create an index of the entries, sometimes you will get multiple entries with the same name
+        these will have other things next to the name, a combination of these create a unique entry
+        """
         self.fasta_path = fasta_path
         self.delim = delim
         self.offsets = {}  # merged unique key -> file offset
         self._build_index()
 
+    #TODO write the index to file
     def _build_index(self):
+        """
+        collect all the entries in a "fasta" file, this would work for fastas assuming there are no duplicated entries
+        """
         with open(self.fasta_path, "r") as f:
             while True:
                 pos = f.tell()
@@ -54,6 +66,16 @@ class SinglePassFastaIndex:
 
             return SeqRecord(Seq("".join(seq_lines)), id=key, description="")
 
+    def __len__(self):
+        return len(list(self.offsets.keys()))
+
+    def __repr__(self):
+        return f"{self.fasta_path} index with {self.__len__()} entries"
+
+    def __str__(self):
+        return self.__repr__()
+
+#TODO need to add some methods to seeing what's in there and get them ala pandas slicing
 class Alignment:
     def __init__(self, table, alignment, cols):
         self.table = pd.read_csv(table, sep="\t", names=cols)
@@ -67,4 +89,4 @@ class Alignment:
         return len(self.alignment.keys())
 
     def __str__(self):
-        return f"MSA with {len(self)} sequences."
+        return f"Alignment with {len(self)} sequences."

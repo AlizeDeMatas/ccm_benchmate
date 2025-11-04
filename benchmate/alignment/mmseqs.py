@@ -5,6 +5,8 @@ import shutil
 from typing import Union, List, Dict, Optional
 import uuid
 
+from huggingface_hub.utils import capture_output
+
 from benchmate.alignment.utils import *
 
 
@@ -41,6 +43,23 @@ class MMSeqs:
 
         self._run_mmseqs(cmd, check=True)
         return db_path
+
+    def pad_db(self, old_db, new_db, **kwargs):
+        """
+        create a padded db from an exising one
+        :param old_db: old db to pad
+        :param new_db: new db path
+        :return the path of the new db if all goes well
+        """
+        db_args = [
+            "makepaddedseqdb",
+            old_db,
+            new_db
+        ]
+
+        db_args += self._process_extra_args(kwargs)
+        self._run_mmseqs(db_args, check=True)
+        return new_db
 
     def search(
         self,
@@ -183,4 +202,29 @@ class MMSeqs:
     def _run_mmseqs(self, args: List[str], **kwargs) -> subprocess.CompletedProcess:
         cmd = [self.mmseqs_bin] + args
         return subprocess.run(cmd, **kwargs)
+
+    def list_dbs(self):
+        dbs=self._run_mmseqs(["databases"], capture_output=True, text=True)
+        return dbs.stdout.strip().split("\n")
+
+    def download_db(self, dbname, location, create=False):
+
+        work_dir = tempfile.mkdtemp()
+
+        if not os.path.exists(location) and not create:
+            raise NotADirectoryError(f"could not find {location}")
+
+        if not os.path.exists(location) and create:
+            os.mkdir(location)
+
+        cmd=["databases", dbname, f"{location}/{dbname}", work_dir]
+
+        try:
+            self._run_mmseqs(cmd, check=True)
+            return f"{location}/{dbname}"
+        except subprocess.CalledProcessError as e:
+            err = e.stderr.decode()
+            print(f"Database download failed: {err}")
+        finally:
+            shutil.rmtree(work_dir, ignore_errors=True)
 
