@@ -1,7 +1,8 @@
 ---
 layout: default
-title: Molecule Module
-nav_order: 10
+title: Molecule
+parent: Modules
+nav_order:7 
 ---
 
 # Molecule Module

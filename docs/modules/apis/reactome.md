@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Ensembl
+title: Reactome
 parent: APIs
 grand_parent: Modules
 nav_order: 4
