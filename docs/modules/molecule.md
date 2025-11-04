@@ -2,7 +2,7 @@
 layout: default
 title: Molecule
 parent: Modules
-nav_order:7 
+nav_order: 7 
 ---
 
 # Molecule Module
