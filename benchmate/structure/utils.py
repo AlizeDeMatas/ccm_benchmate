@@ -26,17 +26,19 @@ def download(id, source="PDB", destination=None):
     """
     if source == "PDB":
         url = "http://files.rcsb.org/download/{}.cif".format(id)
+        format="cif"
     elif source == "AFDB":
         url = "https://alphafold.ebi.ac.uk/files/AF-{}-F1-model_v6.pdb".format(id)
+        format="pdb"
     else:
         raise NotImplementedError("We can only download structures from PDB or AFDB")
 
     download = requests.get(url, stream=True)
     download.raise_for_status()
-    with open("{}/{}.pdb".format(destination, id), "wb") as f:
+    with open("{}/{}.{}".format(destination, id, format), "wb") as f:
         f.write(download.content)
 
-    return "{}/{}.pdb".format(destination, id)
+    return "{}/{}.{}".format(destination, id, format)
 
 
 def get_pocket_dimensions(pocket_path):

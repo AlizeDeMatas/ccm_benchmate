@@ -146,7 +146,7 @@ class GenomicRangesList:
                     else:
                         overlap = self.items[i].overlaps(other.items[j], ignore_strand=True, type=type)
 
-                if overlap is not None:
+                if overlap:
                     if return_ranges:
                         overlaps.append((self.items[i], other.items[j]))
                     else:

@@ -2,11 +2,11 @@ import os
 import subprocess
 from dataclasses import dataclass
 
-from typing import List, Union, Tuple
+from typing import List, Union, Tuple, Optional
 
 from biotite.structure import distance, get_chains, alphabet, to_sequence
 from biotite.structure.io.pdb import PDBFile
-from biotite.structure.io.pdbx import CIFFile
+from biotite.structure.io.pdbx import CIFFile, get_structure
 
 from benchmate.structure.utils import *
 from benchmate.sequence.sequence import Sequence, SequenceList
@@ -17,9 +17,9 @@ class StructureInfo:
     file: str
     chains: List[str] = None
 
-
+#TODO deal with models
 class Structure:
-    def __init__(self, name, file, id=None, source="PDB", destination="."):
+    def __init__(self, name, file=None, id=None, source="PDB", destination="."):
         """
         :param name: name
         :param file: pdb or cif file
@@ -43,7 +43,8 @@ class Structure:
         if self.file.endswith(".pdb"):
             structure = PDBFile.read(self.file).get_structure()[0]
         elif self.file.endswith(".cif") or self.file.endswith(".mmcif"):
-            structure = CIFFile.read(self.file).get_structure()[0]
+            file = CIFFile.read(self.file)
+            structure=get_structure(file, model=1)
         else:
             raise NotImplementedError("We can only read PDB or CIF files")
         return structure
