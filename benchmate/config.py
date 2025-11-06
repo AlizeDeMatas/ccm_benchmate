@@ -47,21 +47,6 @@ api_call={
     }
 }
 
-#TODO
-alignment={
-    "databases":{
-        "mmseqs2":{
-        "UniRef50": f"{resource_path}/mmseqs/uniref50/",
-        "NT": f"{resource_path}/mmseqs/nt/",
-        "Pfam-A.full": f"{resource_path}/mmseqs/pfam/",
-        "PDB": f"{resource_path}/mmseqs/pdb/"
-        },
-        "foldseek":{
-            "Alphafold/UniProt": f"{resource_path}/foldseek/uniprot_alphafold/",
-            "PDB": f"{resource_path}/foldseek/pdb/"
-        }
-    }
-}
 
 #TODO
 search={"text_embedding_model":literature["text_embedding_model"],

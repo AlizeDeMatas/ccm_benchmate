@@ -191,9 +191,9 @@ class UniProt:
         :return: the features
         """
         if feature_types is not None:
-            features = [feat for feat in results["features"] if feat["type"] in feature_types]
+            features = [feat for feat in results["json"]["features"] if feat["type"] in feature_types]
         else:
-            features = [feat for feat in results["features"]]
+            features = [feat for feat in results["json"]["features"]]
         return features
 
     def get_comments(self, results, types=None):
@@ -205,9 +205,9 @@ class UniProt:
         if types is not None:
             if type(types) == str:
                 types = [types]
-            comments = [comment for comment in results["comments"] if comment["type"] in types]
+            comments = [comment for comment in results["json"]["comments"] if comment["type"] in types]
         else:
-            comments = [feat for feat in results["comments"]]
+            comments = [feat for feat in results["json"]["comments"]]
         return comments
 
     def _get_variations(self, results):
