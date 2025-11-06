@@ -74,7 +74,7 @@ class Range:
         elif type == "end":
             return self._range.overlaps(other._range) and self.end >= other.end
         else:
-            return None
+            return False
 
     def distance(self, other):
         """

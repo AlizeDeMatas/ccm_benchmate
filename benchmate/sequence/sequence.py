@@ -1,6 +1,6 @@
 from collections import Counter
 from dataclasses import dataclass
-from typing import Dict
+from typing import Union, List, Dict, Optional
 
 import biotite.sequence
 from biotite.application.clustalo import ClustalOmegaApp
@@ -362,7 +362,7 @@ class Sequence:
 
     def to_fasta(self, file_path: str) -> None:
         """Write this sequence to a FASTA file."""
-        rec = SeqIO.SeqRecord(Seq(self.sequence), id=self.name, description="")
+        rec = SeqIO.SeqRecord(Seq.Seq(self.sequence), id=self.name, description="")
         with open(file_path, "w") as handle:
             SeqIO.write(rec, handle, "fasta")
 

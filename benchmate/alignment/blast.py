@@ -7,6 +7,8 @@ from typing import List
 
 import pandas as pd
 
+from benchmate.sequence.sequence import Sequence
+
 
 class Blast:
     def __init__(self, path=None, dbtype="n"):
@@ -86,18 +88,14 @@ class Blast:
 
     def search(self, seq, db, output_type="tabular", exec="blastn", arg_dict=None, cols=None):
         """
-        blast a sequence
-        :param exec: which execuctable to use, blastn, blastp, blastx, tblastn or tblastx see blast documentation for details
-        :type exec:
-        :param output_type: tabular or json if tabular is selected you can include a list of column names to be added to the table
-        see blast documentation for details
-        :type output_type: str
-        :param seq: Bio.Seq object if multiple queries are needed you can call this function multiple times
-        :type seq: Bio.Seq
-        :param arg_dict: keyword arguments for the respective blast program if None default values will be used see blast documentations for details
-        :type arg_dict: dict
-        :return: a pandas dataframe if tabular dict if json
-        :rtype: pd.DataFrame or dict
+        Search an existing blast database with a sequence class instance
+        :param seq: a benchmate.sequence.sequence.Sequence instance
+        :param db: the path and name of the database
+        :param output_type: tabular or json
+        :param exec: what to use for serach depends on the type of sequence being searched
+        :param arg_dict: additional arguments to blast
+        :param cols: what columns to return if you are returning a table
+        :return: pd.DataFrame of dict
         """
 
         if exec in ["blastn", "tblastn", "tblastx"] and self.dbtype == "p":
@@ -108,7 +106,7 @@ class Blast:
 
         work_dir = tempfile.mkdtemp()
 
-        self._write_query_fasta(seq, os.path.join(work_dir, "query.fasta"))
+        seq.to_fasta(os.path.join(work_dir, "query.fasta"))
 
         command = [exec, "-db", db]
         command.extend(["-query", os.path.join(work_dir, "query.fasta")])

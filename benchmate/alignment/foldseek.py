@@ -4,6 +4,8 @@ import tempfile
 import shutil
 from typing import Union, List, Dict, Optional
 
+import benchmate.structure.structure
+
 
 class FoldSeek:
     """
@@ -65,9 +67,26 @@ class FoldSeek:
         print(f"Database created: {db_path}")
         return db_path
 
+    def pad_db(self, old_db, new_db, **kwargs):
+        """
+        create a padded db from an exising one
+        :param old_db: old db to pad
+        :param new_db: new db path
+        :return the path of the new db if all goes well
+        """
+        db_args = [
+            "makepaddedseqdb",
+            old_db,
+            new_db
+        ]
+
+        db_args += self._process_extra_args(kwargs)
+        self._run_mmseqs(db_args, check=True)
+        return new_db
+
     def search(
         self,
-        query_pdb: str,
+        structure: benchmate.structure.structure.Structure,
         target_db: str,
         output_a3m: str,
         output_tsv: str,
@@ -98,8 +117,8 @@ class FoldSeek:
         Note:
             GPU errors are caught and reported (FoldSeek handles compatibility).
         """
-        if not os.path.isfile(query_pdb):
-            raise FileNotFoundError(f"Query PDB file not found: {query_pdb}")
+        if not os.path.isfile(structure.info.file):
+            raise FileNotFoundError(f"Query PDB file not found: {structure.info.file}")
 
         # Create temporary working directory
         work_dir = tempfile.mkdtemp(dir=tmp_dir)
@@ -110,7 +129,7 @@ class FoldSeek:
             a3m_tmp = os.path.join(work_dir, "result.a3m")
 
             # Step 1: Create query DB from PDB
-            self._run_foldseek(["createdb", query_pdb, query_db], check=True)
+            self._run_foldseek(["createdb", structure.info.file, query_db], check=True)
 
             # Step 2: Search
             search_args = [
@@ -190,8 +209,6 @@ class FoldSeek:
 
         return output_a3m, output_tsv
 
-    # === Helper Methods ===
-
     def _process_extra_args(self, extra_args) -> List[str]:
         """Convert dict or list of extra args to list of strings."""
         if extra_args is None:
@@ -214,4 +231,29 @@ class FoldSeek:
         cmd = [self.foldseek_bin] + args
         print(f"Running: {' '.join(cmd)}")  # Optional debug
         return subprocess.run(cmd, **kwargs)
+
+    def list_dbs(self):
+        dbs=self._run_foldseek(["databases"], capture_output=True, text=True)
+        return dbs.stdout.strip().split("\n")
+
+    def download_db(self, dbname, location, create=False):
+
+        work_dir = tempfile.mkdtemp()
+
+        if not os.path.exists(location) and not create:
+            raise NotADirectoryError(f"could not find {location}")
+
+        if not os.path.exists(location) and create:
+            os.mkdir(location)
+
+        cmd=["databases", dbname, f"{location}/{dbname}", work_dir]
+
+        try:
+            self._run_foldseek(cmd, check=True)
+            return f"{location}/{dbname}"
+        except subprocess.CalledProcessError as e:
+            err = e.stderr.decode()
+            print(f"Database download failed: {err}")
+        finally:
+            shutil.rmtree(work_dir, ignore_errors=True)
 
