@@ -25,7 +25,6 @@ class Genome:
         :param db_conn: database connection object this is a sqlalchemy engine
         :param taxon_id: taxon id of the genome
         """
-        db_description=None
         self.db=db_conn
         Session = sessionmaker(self.db)
         self.session = Session()
@@ -34,6 +33,7 @@ class Genome:
         self.tables = self.metadata.tables
         self.gtf = gtf
         self.name = name
+        self.description=description
         self.table_names=list(StandAloneBase.metadata.tables.keys())
         if genome_fasta is not None:
             self.genome_fasta = pysam.FastaFile(genome_fasta)
@@ -57,7 +57,7 @@ class Genome:
                     Base.metadata.create_all(self.db)
 
             self.metadata.reflect(bind=self.db)
-            genome_id, chrom_ids = insert_genome(gtf=gtf, engine=self.db, name=self.name, description=self.description,
+            genome_id, chrom_ids = insert_genome(gtf=gtf, engine=self.db, name=self.name, description=description,
                                              genome_fasta=genome_fasta, transcriptome_fasta=transcriptome_fasta, proteome_fasta=proteome_fasta,
                                              )
         else:

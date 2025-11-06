@@ -131,8 +131,6 @@ class PaperInfo:
     table_embeddings: Optional[np.ndarray] = None
     figure_interpretation: Optional[str] = None
     table_interpretation: Optional[str] = None
-    figure_interpretation_embeddings: Optional[np.ndarray] = None
-    table_interpretation_embeddings: Optional[np.ndarray] = None
     download_link: str = None
     downloaded: bool = False
     file_path: str = None
