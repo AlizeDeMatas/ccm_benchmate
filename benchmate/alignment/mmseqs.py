@@ -3,10 +3,9 @@ import os
 import tempfile
 import shutil
 from typing import Union, List, Dict, Optional
-import uuid
 
-from huggingface_hub.utils import capture_output
 
+import benchmate.sequence.sequence
 from benchmate.alignment.utils import *
 
 
@@ -63,7 +62,7 @@ class MMSeqs:
 
     def search(
         self,
-        query: Union[str, List[str]],
+        query: Union[benchmate.sequence.sequence.Sequence, benchmate.sequence.sequence.SequenceList],
         target_db: str,
         output_a3m: str,
         output_tsv: str,
@@ -78,16 +77,15 @@ class MMSeqs:
         """
         Full pipeline: query → search/pairaln → A3M + TSV
         """
-        if isinstance(query, str):
-            queries = [query]
-        elif isinstance(query, (list, tuple)):
-            queries = list(query)
-            if len(queries) not in (1, 2):
-                raise ValueError("Query list must have 1 or 2 sequences.")
-        else:
-            raise TypeError("Query must be str or list of 1-2 sequences.")
+        if not isinstance(query, benchmate.sequence.sequence.Sequence) or \
+                isinstance(query, benchmate.sequence.sequence.SequenceList):
+            raise TypeError("Query must be a sequence or sequencelist instance.")
 
-        is_paired = len(queries) == 2
+        if len(query) > 1 and isinstance(query, benchmate.sequence.sequence.SequenceList):
+            is_paired = True
+        else:
+            is_paired = False
+
         work_dir = tempfile.mkdtemp(dir=tmp_dir)
 
         try:
@@ -98,7 +96,7 @@ class MMSeqs:
             a3m_tmp = os.path.join(work_dir, "result.a3m")
 
             # Step 1: Write query FASTA
-            self._write_query_fasta(queries, query_fasta, paired=is_paired)
+            query.to_fasta(os.path.join(work_dir, "query.fasta"))
 
             # Step 2: Create query DB
             self._run_mmseqs(["createdb", query_fasta, query_db], check=True)
@@ -174,16 +172,6 @@ class MMSeqs:
 
         return output_a3m, output_tsv
 
-    def _write_query_fasta(self, sequences: List[str], path: str, paired: bool = False):
-        with open(path, 'w') as f:
-            if paired:
-                header = f">query_{uuid.uuid4().hex[:8]}"
-                f.write(header + "\n" + sequences[0] + "\n")
-                f.write(header + "\n" + sequences[1] + "\n")
-            else:
-                for i, seq in enumerate(sequences):
-                    f.write(f">query_{i}\n{seq}\n")
-
     def _process_extra_args(self, extra_args) -> List[str]:
         if extra_args is None:
             return []
@@ -211,20 +199,27 @@ class MMSeqs:
 
         work_dir = tempfile.mkdtemp()
 
+        if "/" in dbname:
+            dbpath = dbname.replace("/", "_")
+        else:
+            dbpath = dbname
+
         if not os.path.exists(location) and not create:
             raise NotADirectoryError(f"could not find {location}")
 
         if not os.path.exists(location) and create:
             os.mkdir(location)
 
-        cmd=["databases", dbname, f"{location}/{dbname}", work_dir]
+        cmd=["databases", dbname, f"{location}/{dbpath}", work_dir]
 
         try:
             self._run_mmseqs(cmd, check=True)
-            return f"{location}/{dbname}"
+            return f"{location}/{dbpath}"
         except subprocess.CalledProcessError as e:
-            err = e.stderr.decode()
+            err = e.stderr
             print(f"Database download failed: {err}")
         finally:
             shutil.rmtree(work_dir, ignore_errors=True)
+
+        return
 

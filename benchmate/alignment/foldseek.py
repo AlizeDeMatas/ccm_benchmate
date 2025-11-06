@@ -4,6 +4,8 @@ import tempfile
 import shutil
 from typing import Union, List, Dict, Optional
 
+import benchmate.structure.structure
+
 
 class FoldSeek:
     """
@@ -84,7 +86,7 @@ class FoldSeek:
 
     def search(
         self,
-        query_pdb: str,
+        structure: benchmate.structure.structure.Structure,
         target_db: str,
         output_a3m: str,
         output_tsv: str,
@@ -115,8 +117,8 @@ class FoldSeek:
         Note:
             GPU errors are caught and reported (FoldSeek handles compatibility).
         """
-        if not os.path.isfile(query_pdb):
-            raise FileNotFoundError(f"Query PDB file not found: {query_pdb}")
+        if not os.path.isfile(structure.info.file):
+            raise FileNotFoundError(f"Query PDB file not found: {structure.info.file}")
 
         # Create temporary working directory
         work_dir = tempfile.mkdtemp(dir=tmp_dir)
@@ -127,7 +129,7 @@ class FoldSeek:
             a3m_tmp = os.path.join(work_dir, "result.a3m")
 
             # Step 1: Create query DB from PDB
-            self._run_foldseek(["createdb", query_pdb, query_db], check=True)
+            self._run_foldseek(["createdb", structure.info.file, query_db], check=True)
 
             # Step 2: Search
             search_args = [
@@ -206,8 +208,6 @@ class FoldSeek:
                 shutil.rmtree(work_dir, ignore_errors=True)
 
         return output_a3m, output_tsv
-
-    # === Helper Methods ===
 
     def _process_extra_args(self, extra_args) -> List[str]:
         """Convert dict or list of extra args to list of strings."""

@@ -77,7 +77,9 @@ class SinglePassFastaIndex:
 
 #TODO need to add some methods to seeing what's in there and get them ala pandas slicing
 class Alignment:
-    def __init__(self, table, alignment, cols):
+    def __init__(self, table, alignment, cols=None):
+        if cols is None:
+            cols=["query","target","pident","alnlen","mismatch","gapopen","qstart","qend","tstart","tend","evalue","bits"]
         self.table = pd.read_csv(table, sep="\t", names=cols)
         self.alignment = SinglePassFastaIndex(alignment)
         self.query=self.__getitem__(0)
