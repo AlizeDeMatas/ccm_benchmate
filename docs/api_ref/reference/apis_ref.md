@@ -1010,3 +1010,73 @@ def flat()
 
 Flatten JSON response into a single summary string. This will be used for tsvector in full text search
 
+<a id="benchmate.apis.ols"></a>
+
+# benchmate.apis.ols
+
+<a id="benchmate.apis.ols.Ontology"></a>
+
+## Ontology Objects
+
+```python
+@dataclass
+class Ontology()
+```
+
+Dataclass to store ontology term information. Same idea as the other dataclasses in benchmate.apis
+
+<a id="benchmate.apis.ols.OLS"></a>
+
+## OLS Objects
+
+```python
+class OLS()
+```
+
+ontology Lookup Service (OLS) client for querying ontology information, because I have avoided
+dealing with owl files so far and will continue to do so.
+
+<a id="benchmate.apis.ols.OLS.ontologies"></a>
+
+#### ontologies
+
+```python
+@cached_property
+def ontologies() -> Dict[Any]
+```
+
+get a list of all ontologies in OLS, this may take a few seconds to run the first time around but after that it will be cached
+
+<a id="benchmate.apis.ols.OLS.get_term"></a>
+
+#### get\_term
+
+```python
+@api_call
+def get_term(ontology_id: str,
+             term_id: str,
+             iri: Optional[str] = None,
+             get_children: bool = False,
+             get_parents: bool = False,
+             get_ancestors=False,
+             get_descendants=False,
+             get_graph=False) -> Ontology
+```
+
+get details about a specific term in an ontology, you will need to know the ontology id and either the term id or the iri
+
+**Arguments**:
+
+- `ontology_id`: name of the ontology to search
+- `term_id`: the short form, or term id can be used
+- `iri`: or you can use the full iri
+- `get_children`: get the children, these will not be recursuve in the sense that it will just return the json, not additional
+ontology objects
+- `get_parents`: same as children but for parents
+- `get_ancestors`: same as children but for ancestors
+- `get_descendants`: same as children but for descendants
+- `get_graph`: get the relationship graph for the term, this is just a dict of the graph {"nodes": [], "edges": []}
+
+**Returns**:
+
+ontology object with details and requested features
