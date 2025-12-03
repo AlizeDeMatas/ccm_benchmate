@@ -14,10 +14,10 @@ we add more functionalities and move some of them to the `ContainerRunner` modul
 
 ## Installing Conda
 
-This one is fairly straightforward, you can follow the instructions [here]() after running the installation script you should
+This one is fairly straightforward, you can follow the instructions [here](https://docs.conda.io/projects/conda/en/stable/user-guide/install/index.html) after running the installation script you should
 be able to activate/deactivate conda environments. If you are installing this under HPC, I suggest that you move the location
-of your conda cache to a different location. You can do that by following the instructions [here](), the other option
-is that you can create a [symbolic link]() to your `.cache`, `.singularity` and `.conda` folders in your `~` where the actual
+of your conda cache to a different location. You can do that by following the instructions [here](https://stackoverflow.com/questions/58131555/how-to-change-the-path-of-conda-base), the other option
+is that you can create a [symbolic link](https://stackoverflow.com/questions/1951742/how-can-i-symlink-a-file-in-linux) to your `.cache`, `.singularity` and `.conda` folders in your `~` where the actual
 folders are in a partition with more storage. 
 
 ## Installing Benchmate
@@ -105,6 +105,15 @@ After you install all the dependencies you can install benchmate. Assuming you a
 ```bash
 pip install .
 ```
+
+If you run into issued during installation this might be due to detectron installation. To get around this you can try installing detectron
+manually after all the other dependencies installed. To do this simply remove the detectron line from the `requirements.txt` file and run the above command again.
+After all the other dependencies are installed you can run the following commands to install detectron
+
+```bash
+pip install git+https://github.com/facebookresearch/detectron2.git@ff53992b1985b63bd3262b5a36167098e3dada02
+```
+
 
 ## A Quick note about model selection
 

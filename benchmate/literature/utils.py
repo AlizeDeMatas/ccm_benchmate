@@ -44,6 +44,27 @@ def extract_pdfs_from_tar(file, destination):
         print(f"Error: Could not open or read {file}. It might be corrupted or not a valid tar.gz file.")
         return None
 
+
+def download_tar(download_link, file):
+    """
+    download the pmc tar file to destination file
+    :param download_link: web link to download tar file
+    :param file: file to write the tar file into
+    :return: write/download tar file to file
+    """
+    response=requests.get(download_link, stream=True)
+    response.raise_for_status()
+    if response.status_code==200: #check get response, is there an error from server side is the link correct
+        try:
+            with open(file, "wb") as f:
+                for chunk in response.iter_content(chunk_size=8192): #1MB chunk downloads
+                    f.write(chunk)
+            return None
+        except Exception as e:
+            raise RuntimeError('Could not download tar file: {}'.format(e)) from e
+    else:
+        return response.raise_for_status()
+
 #This is not for the end user, this is for the developers
 def filter_openalex_response(response, fields=["id", "ids", "doi", "title", "topics", "keywords", "concepts",
                 "mesh", "best_oa_location", "referenced_works", "related_works",
