@@ -111,7 +111,16 @@ manually after all the other dependencies installed. To do this simply remove th
 After all the other dependencies are installed you can run the following commands to install detectron
 
 ```bash
-pip install git+https://github.com/facebookresearch/detectron2.git@ff53992b1985b63bd3262b5a36167098e3dada02
+pip install --no-build-isolation git+https://github.com/facebookresearch/detectron2.git@ff53992b1985b63bd3262b5a36167098e3dada02
+```
+
+If you are running this in SickKids HPC and you run into issues that are related to GLIBC the only workarouns is to 
+uninstall `flash_atnn`. This will result in a small performace hit for the transformer models that are used in paper processing. 
+
+you can do that by running 
+
+```bash
+pip uninstall flash_attn
 ```
 
 
