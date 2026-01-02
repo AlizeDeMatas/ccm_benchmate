@@ -10,7 +10,6 @@ from model2vec import StaticModel
 from sqlalchemy import insert, select
 from sqlalchemy.exc import NoResultFound
 
-from benchmate.apis.ols import TooManyResultsError
 from benchmate.config import *
 from benchmate.project.utils import DataIntegrityError
 
