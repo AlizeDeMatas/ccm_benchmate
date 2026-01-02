@@ -1,11 +1,15 @@
 from dataclasses import dataclass
 from typing import Optional
 
+from sqlalchemy import select, insert
+from sqlalchemy.exc import NoResultFound
+
 from rdkit import Chem
 from rdkit.Chem import Descriptors
 from rdkit.Chem import rdMolDescriptors
 from rdkit.Chem.rdFingerprintGenerator import GetMorganGenerator, GetMorganFeatureAtomInvGen
 
+from benchmate.project.utils import DataIntegrityError
 from benchmate.molecule.utils import *
 
 @dataclass
@@ -20,6 +24,47 @@ class MoleculeInfo:
     maccs: Optional[np.ndarray] = None
     inchikey: Optional[str] = None
     properties: Optional[dict] = None
+
+    def to_kb(self, project):
+        molecule_table = project.kb.db_tables["molecule"]
+        mol_stms = insert(molecule_table.c.project_id,
+                          molecule_table.c.name,
+                          molecule_table.c.smiles,
+                          molecule_table.c.ecfp4,
+                          molecule_table.c.fcfp4,
+                          molecule_table.c.maccs,
+                          molecule_table.c.properties, ).values(project.project_id,
+                                                                self.name,
+                                                                self.smiles,
+                                                                self.ecfp4,
+                                                                self.fcfp4,
+                                                                self.maccs,
+                                                                self.properties, ).returning(molecule_table.c.id)
+        results=project.kb.session().execute(mol_stms)
+        mol_id=results.scalar.one()
+        project.kb.session().commit()
+
+        return mol_id
+
+    @classmethod
+    def from_kb(cls, project, id):
+        molecule_table = project.kb.db_tables["molecule"]
+        stmt=select(molecule_table.c.name,
+                    molecule_table.c.smiles,
+                    molecule_table.c.fingerprint_dim,
+                    molecule_table.c.fingerprint_radius,
+                    molecule_table.c.features).where(molecule_table.c.id == id)
+
+        results=project.kb.session().execute(stmt).fetchall()
+
+        if len(results)==0:
+            raise NoResultFound("Could not find a molecule with id {}".format(id))
+
+        if len(results)>1:
+            raise DataIntegrityError("Found more than one molecule with id {}".format(id))
+
+        mol=Molecule(results[0][0], results[0][1], results[0][2], results[0][3])
+        return mol
 
 
 class Molecule:
@@ -114,6 +159,9 @@ class Molecule:
         return hash(self.inchikey())
 
     def __eq__(self, other):
+        """
+        using inchi key because the molecules might not be in canonical smiles, it's not perfect but close
+        """
         return isinstance(other, Molecule) and self.inchikey() == other.inchikey()
 
     def __repr__(self):
