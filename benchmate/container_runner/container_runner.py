@@ -1,14 +1,35 @@
-import os
-import subprocess
-import tempfile
-from pathlib import Path
-from typing import List, Dict, Optional, Union
+#add pydantic to requirements
+"""
+ContainerRunner module for running Singularity/Apptainer or Docker containers locally or with SLURM.
+"""
 
+import subprocess
+from pathlib import Path
+import shlex
+from pydantic import BaseModel, ConfigDict
+from typing import Optional, Dict
+import tempfile
+import os
+
+class SlurmParams(BaseModel):
+    """
+    Pydantic model for SLURM parameters used when submitting jobs.
+    """
+    model_config = ConfigDict(extra='forbid')
+    job_name: str = "Container_job"
+    time: str = "01:00:00"
+    mem: str = "4G"
+    output: str = "slurm-%j.out"
+    error: str = "slurm-%j.err"
+    cpus_per_task: Optional[int] = None
+    ntasks: int = 1
+    gpus: Optional[int] = None
+    nodes: int = 1
+    additional_sbatch: Optional[Dict[str, str]] = None
 
 class ContainerError(Exception):
     """Base exception for Container-related errors."""
     pass
-
 
 class ContainerSubprocessError(ContainerError):
     """Exception raised when an Container subprocess fails."""
@@ -18,168 +39,205 @@ class ContainerSubprocessError(ContainerError):
         self.stderr = stderr
         super().__init__(f"Container subprocess failed with return code {returncode}: {stderr}")
 
-
 class ContainerSlurmError(ContainerError):
     """Exception raised for SLURM job-related errors."""
     pass
 
-
 class ContainerRunner:
-    """A class to run Container containers with various configuration options."""
+    """
+    A class to run containers with various configuration options.
 
-    def __init__(self, container_path, running_command="singularity"):
+    Supports Singularity/Apptainer and Docker engines, with optional SLURM submission.
+    """
+    def __init__(self, engine, container_path):
         """
-        Initialize the Container runner.
+        Initialize the container runner.
 
         Args:
-            container_path: Path to the Singularity container image (.sif file)
+            engine: Container engine ("singularity", "apptainer", or "docker")
+            container_path: Path to .sif (for singularity/apptainer) OR image name (for docker)
 
         Raises:
-            ContainerError: If the container path does not exist
+            ContainerError: If engine is invalid or container path/image is invalid.
         """
-        self.container_path = str(Path(container_path).resolve())
-        if not os.path.exists(self.container_path):
-            raise ContainerError(f"Container path does not exist: {self.container_path}")
-        self.bind_mounts: Dict[str, str] = {}
-        self.use_gpu: bool = False
-        self.Container_cmd = running_command
+        engine = engine.strip().lower()
+        if engine not in {"singularity", "docker", "apptainer"}:
+            raise ContainerError(f"Unsupported engine: {engine}")
+        self.engine = engine
 
-    def add_bind_mount(self, host_paths, container_path) -> None:
+        if engine in {"singularity", "apptainer"}:
+            if not Path(container_path).exists():
+                raise ContainerError(f"{container_path} does not exist")
+            if Path(container_path).suffix != ".sif":
+                raise ContainerError("Singularity/Apptainer requires a .sif file")
+            self.container_path = container_path
+        else:
+            self.image_name = container_path
+
+        self.bind_mounts = []
+        self.use_gpu = False
+        
+    def enable_gpu(self):
+        """Enable NVIDIA GPU support for the container."""
+        self.use_gpu = True
+
+    def add_bind_mount(self, host_mount, container_mount):
         """
         Add a bind mount to the container configuration.
 
         Args:
-            host_path: Path on the host system
-            container_path: Path inside the container
+            host_mount: Path on the host system
+            container_mount: Path inside the container
 
         Raises:
             ContainerError: If the host path does not exist
         """
-        host_paths = [str(Path(host_path).resolve()) for host_path in host_paths]
-        for host_path in host_paths:
-            if not os.path.exists(host_path):
-                raise ContainerError(f"Host path does not exist: {host_path}")
-        self.bind_mounts[host_paths] = container_path
-
-    def enable_gpu(self) -> None:
-        """Enable NVIDIA GPU support for the container."""
-        self.use_gpu = True
-
-    def _build_Container_command(self, command: Union[str, List[str]]) -> List[str]:
+        if not Path(host_mount).exists():
+            raise ContainerError(f"Host path does not exist: {host_mount}")
+        self.bind_mounts.append({"host": host_mount, "container": container_mount})
+        
+    
+    def _build_container_command(self, command_list):
         """
-        Build the Container command with all configured options.
+        Build the container command with all configured options.
 
         Args:
-            command: Command to run inside the container (string or list)
+            command_list: Command to run inside the container as a list
 
         Returns:
             List of command components
         """
-        cmd = [self.Container_cmd, "run"]
+        if self.engine in {"singularity", "apptainer"}:
+            return self._build_singularity_command(command_list)
+        return self._build_docker_command(command_list)
+    
+    def _build_docker_command(self, command_list):
+        """
+        Build a Docker command with configured options.
 
+        Args:
+            command_list: Command to run inside the container as a list.
+
+        Returns:
+            List of command components.
+        """
+        cmd = ["docker", "run"]
+        for bind in self.bind_mounts:
+            cmd.append(f"--volume={bind['host']}:{bind['container']}")
+        if self.use_gpu:
+            cmd += ["--gpus", "all"]
+        cmd.append(self.image_name)
+        cmd.extend(command_list)
+        
+        return cmd
+
+    def _build_singularity_command(self, command_list):
+        """
+        Build a Singularity/Apptainer command with configured options.
+
+        Args:
+            command_list: Command to run inside the container as a list.
+
+        Returns:
+            List of command components.
+        """
+        if self.engine == "singularity":
+            cmd = ["singularity", "exec"]
+        else:
+            cmd = ["apptainer", "exec"]
         if self.use_gpu:
             cmd.append("--nv")
-
-        for host_path, container_path in self.bind_mounts.items():
-            cmd.append(f"--bind={host_path}:{container_path}")
-
+        for bind in self.bind_mounts:
+            cmd.append(f"--bind={bind['host']}:{bind['container']}")
         cmd.append(self.container_path)
-
-        if isinstance(command, str):
-            cmd.extend(command.split())
-        else:
-            cmd.extend(command)
-
+        cmd.extend(command_list)
         return cmd
 
     def run(self, command, **subprocess_kwargs):
         """
-        Run a command in the Singularity container.
+        Run a command in the container.
 
         Args:
-            command: Command to run (string or list)
-            **subprocess_kwargs: Additional arguments for subprocess.run
+            command: Command to run (string or list).
+            **subprocess_kwargs: Additional arguments for subprocess.run.
 
         Returns:
-            CompletedProcess object
+            CompletedProcess object.
 
         Raises:
-            ContainerSubprocessError: If the subprocess fails
+            ContainerSubprocessError: If the subprocess fails.
+            ContainerError: If a subprocess error occurs.
         """
-        cmd = self._build_Container_command(command)
+        if isinstance(command, str):
+            command_list = shlex.split(command)
+        else:
+            command_list = command
+        cmd = self._build_container_command(command_list)
         try:
             result = subprocess.run(cmd, **subprocess_kwargs, capture_output=True, text=True)
             if result.returncode != 0:
                 raise ContainerSubprocessError(result.returncode, result.stderr)
             return result
         except subprocess.SubprocessError as e:
-            raise ContainerError(f"Subprocess error: {str(e)}")
+            raise ContainerError(f"Subprocess error: {e}")
 
-    def run_slurm(
-            self,
-            command: Union[str, List[str]],
-            job_name: str = "Container_job",
-            partition: str = "default",
-            nodes: int = 1,
-            ntasks: int = 1,
-            time: str = "01:00:00",
-            mem: str = "4G",
-            gpus: Optional[int] = None,
-            output_file: str = "slurm-%j.out",
-            additional_sbatch: Optional[Dict[str, str]] = None
-    ):
+    def run_slurm(self, command, **slurm_kwargs):
         """
-        Submit a command to run in the singularity container as a SLURM job.
+        Submit a command to run in the container as a SLURM job.
 
         Args:
-            command: Command to run (string or list)
-            job_name: Name of the SLURM job
-            partition: SLURM partition to use
-            nodes: Number of nodes
-            ntasks: Number of tasks
-            time: Time limit (format: HH:MM:SS)
-            mem: Memory per node
-            gpus: Number of GPUs to request (if any)
-            output_file: SLURM output file pattern
-            additional_sbatch: Additional SBATCH directives
+            command: Command to run (string or list).
+            **slurm_kwargs: SLURM parameters validated by SlurmParams.
 
         Returns:
-            Job ID from sbatch submission
+            Job ID from sbatch submission.
 
         Raises:
-            ContainerSlurmError: If SLURM job submission fails
+            ContainerError: If engine is docker.
+            ContainerSlurmError: If SLURM submission fails.
         """
-        Container_cmd = " ".join(self._build_Container_command(command))
+        if self.engine == "docker":
+            raise ContainerError("SLURM is not supported for Docker")
+        params = SlurmParams(**slurm_kwargs)
+        if isinstance(command, str):
+            command_list = shlex.split(command)
+        else:
+            command_list = command
+        container_cmd = " ".join(self._build_container_command(command_list))
 
-        sbatch_script = f"""#!/bin/bash
-    #SBATCH --job-name={job_name}
-    #SBATCH --partition={partition}
-    #SBATCH --nodes={nodes}
-    #SBATCH --ntasks={ntasks}
-    #SBATCH --time={time}
-    #SBATCH --mem={mem}
-    #SBATCH --output={output_file}
-    """
+        lines = ["#!/bin/bash"]
 
-        if gpus is not None and self.use_gpu:
-            sbatch_script += f"#SBATCH --gpus={gpus}\n"
+        lines.append(f"#SBATCH --job-name={params.job_name}")
+        lines.append(f"#SBATCH --time={params.time}")
+        lines.append(f"#SBATCH --mem={params.mem}")
+        lines.append(f"#SBATCH --output={params.output}")
+        lines.append(f"#SBATCH --error={params.error}")
+        lines.append(f"#SBATCH --ntasks={params.ntasks}")
+        lines.append(f"#SBATCH --nodes={params.nodes}")
 
-        if additional_sbatch:
-            for key, value in additional_sbatch.items():
-                sbatch_script += f"#SBATCH --{key}={value}\n"
+        if params.cpus_per_task: lines.append(f"#SBATCH --cpus-per-task={params.cpus_per_task}")
 
-        sbatch_script += """
-    # Load Container/Singularity module
-    module load singularity
+        if self.use_gpu and params.gpus is None:
+            lines.append(f"#SBATCH --gpus 1")
+        elif self.use_gpu:
+            lines.append(f"#SBATCH --gpus {params.gpus}")
+        elif params.gpus != None:
+            raise ContainerSlurmError(f"GPU flag is not set but gpu paramter was provided for SLURM job") 
 
-    # Run the Container command
-    {0}
-    """.format(Container_cmd)
+        if params.additional_sbatch:
+            for key, value in params.additional_sbatch.items():
+                lines.append(f"#SBATCH --{key}={value}")
+
+        lines.append("")
+        lines.append("module load Singularity" if self.engine == "singularity" else "module load Apptainer")
+        lines.append(container_cmd)
+
+        script = "\n".join(lines)
 
         with tempfile.NamedTemporaryFile(mode='w', suffix='.sh', delete=False) as f:
-            f.write(sbatch_script)
+            f.write(script)
             script_path = f.name
-
+        
         try:
             result = subprocess.run(
                 ["sbatch", script_path],
@@ -190,7 +248,7 @@ class ContainerRunner:
             job_id = result.stdout.strip().split()[-1]
             return job_id
         except subprocess.SubprocessError as e:
-            raise ContainerSlurmError(f"SLURM submission failed: {str(e)}")
+            raise ContainerSlurmError(f"SLURM submission failed (code {e.returncode}): {e.stderr.strip()}")
         finally:
             os.unlink(script_path)
 
@@ -259,3 +317,4 @@ class ContainerRunner:
             return job_info
         except subprocess.SubprocessError as e:
             raise ContainerSlurmError(f"Failed to get SLURM job info: {str(e)}")
+
