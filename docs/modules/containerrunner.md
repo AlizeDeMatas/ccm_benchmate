@@ -5,6 +5,8 @@ parent: Modules
 nav_order: 9
 ---
 
+# Container Runner Module
+
 A module for running Singularity/Apptainer or Docker containers with support for local and SLURM cluster execution.
 
 ## Overview
