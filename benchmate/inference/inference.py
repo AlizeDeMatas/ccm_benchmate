@@ -1,6 +1,5 @@
 
 import torch
-import torch.nn.functional as F
 
 from chonkie import SemanticChunker, Model2VecEmbeddings
 from sentence_transformers import SentenceTransformer

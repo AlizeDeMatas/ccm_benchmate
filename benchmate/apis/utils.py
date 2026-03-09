@@ -11,6 +11,7 @@ from sqlalchemy import insert, select
 from sqlalchemy.exc import NoResultFound
 
 from benchmate.config import *
+from benchmate.project.project import Project
 from benchmate.project.utils import DataIntegrityError
 
 #I'm keeping this here, instead of using the whole inference thing. I might need to re-write inference
@@ -207,7 +208,7 @@ class ApiCall:
         args = params.get("args")
         kwargs = params.get("kwargs")
 
-        call=ApiCall(
+        call=cls(
             class_name=results[0][0],
             method_name=results[0][1],
             results=results[0][3],
@@ -230,4 +231,22 @@ class ApiCall:
             call.embeddings=[item[1] for item in results]
 
         return call
+
+class ApiCallSearch:
+    def __init__(self, project:Project):
+        self.project=project
+
+    def search(self, query_dict):
+        pass
+
+    def _semantic_search(self, source, query):
+        pass
+
+    def _fulltext_search(self, source, query):
+        pass
+    
+    def _jsonb_search(self, source, query):
+        pass
+
+
 

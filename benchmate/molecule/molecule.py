@@ -5,6 +5,7 @@ from sqlalchemy import select, insert
 from sqlalchemy.exc import NoResultFound
 
 from rdkit import Chem
+from rdkit.Chem import AllChem
 from rdkit.Chem import Descriptors
 from rdkit.Chem import rdMolDescriptors
 from rdkit.Chem.rdFingerprintGenerator import GetMorganGenerator, GetMorganFeatureAtomInvGen
@@ -151,6 +152,26 @@ class Molecule:
         """
         props=Chem.Descriptors.CalcMolDescriptors(self.info.mol)
         return props
+
+
+    def generate_conformers(self, n, prune_thres=0.5, optimize_geom=True):
+        """
+        generate conformers
+        :param n: number of conformers to try to generate, based on pruning they number can be smalled
+        :param prune_thres: remove any conformer that has this much rmsd or less. So lower values will give more conformers
+        :param optimize_geom: whether to optimize the geometry, this will also get rid of some comformers
+        :return: returns a hydrogenated mol with all the conformers that you can get with mol.GetConformers(<conformer_id>) and a list of ids
+        """
+        params = AllChem.ETKDGv3()
+        params.pruneRmsThresh = prune_thres
+
+        mol_h=Chem.AddHs(self.info.mol)
+        conformers=AllChem.EmbedMultipleConfs(mol_h, numConformers=n, params = params)
+        if optimize_geom:
+            AllChem.MMFFOptimizeMoleculeConfs(mol_h)
+
+        return mol_h, list(conformers)
+
 
     def inchikey(self) -> str:
         return Chem.inchi.MolToInchiKey(self.info.mol)
