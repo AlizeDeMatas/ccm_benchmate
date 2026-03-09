@@ -2,13 +2,10 @@ import os.path
 import time
 import tempfile
 
-from dataclasses import dataclass
-from typing import Optional
-
-import numpy as np
 from bs4 import BeautifulSoup as bs
 
 from benchmate.literature.utils import *
+from benchmate.literature.paperinfo import PaperInfo
 
 class NoPapersError(Exception):
     pass
@@ -111,35 +108,6 @@ class LitSearch:
         return to_ret
 
 
-@dataclass
-class PaperInfo:
-    """
-    Dataclass to hold information about a paper, this is constructed inside the Paper class and desined to be compatible with
-    semantic search and embedding distance searches
-    """
-    id: str
-    id_type: str
-    title: Optional[str] = None
-    authors: Optional[list] = None
-    abstract: Optional[str] = None
-    abstract_embeddings: Optional[np.ndarray]  = None
-    text: Optional[str] = None
-    text_chunks: Optional[list] = None
-    chunk_embeddings: Optional[np.ndarray] = None
-    figures: Optional[list] = None
-    figure_embeddings: Optional[np.ndarray] = None
-    tables: Optional[list] = None
-    table_embeddings: Optional[np.ndarray] = None
-    figure_interpretation: Optional[str] = None
-    table_interpretation: Optional[str] = None
-    download_link: str = None
-    downloaded: bool = False
-    file_path: str = None
-    openalex_info: Optional[dict] = None
-    references: Optional[list] = None
-    related_works: Optional[list] = None
-    cited_by: Optional[list] = None
-    pmc_id: Optional[str] = None
 
 class Paper:
     def __init__(self, paper_id, id_type="pubmed", get_abstract=True):

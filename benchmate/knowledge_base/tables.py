@@ -269,6 +269,7 @@ class Molecule(Base):
      ecfp4=Column(ARRAY(Integer, dimensions=1))
      fcfp4=Column(ARRAY(Integer, dimensions=1))
      maccs=Column(ARRAY(Integer, dimensions=1))
+     inchi=Column(String)
      properties=Column(JSONB)
      features=Column(JSONB)
 

@@ -1,3 +1,4 @@
+import warnings
 from functools import cached_property
 import importlib
 from dataclasses import dataclass
@@ -6,8 +7,14 @@ from functools import wraps
 
 import pandas as pd
 from model2vec import StaticModel
+from sqlalchemy import insert, select
+from sqlalchemy.exc import NoResultFound
 
 from benchmate.config import *
+from benchmate.project.utils import DataIntegrityError
+
+#I'm keeping this here, instead of using the whole inference thing. I might need to re-write inference
+# to be more generic and import method from utils depending on the kind of thing we are doing.
 
 embedding_model=StaticModel.from_pretrained(api_call["text_embedding_model"]["model"])
 
@@ -21,6 +28,7 @@ api_mapper={
     "UniProt":"benchmate.apis.uniprot",
     "BioGrid":"benchmate.apis.others",
     "IntAct":"benchmate.apis.others",
+    "OLS":"benchmate.apis.ols",
 }
 
 def api_call(func):
@@ -143,3 +151,83 @@ class ApiCall:
                 elif isinstance(value, scalars):
                     chunks.append({"path": path, "value": str(value)})
         return chunks
+
+    def to_kb(self, project):
+        api_table = project.kb.db_tables["api_call"]
+        params={"args":self.args, "kwargs":self.kwargs}
+        # add main results
+
+        stmt = insert(api_table).values(
+            project_id=project.project_id,
+            class_name=self.class_name,
+            method_name=self.method_name,
+            params=params,
+            query_time=self.query_time,
+            results=self.results,
+            flat_results=self.flat,
+        ).returning(api_table.c.id)
+
+        result = project.kb.session().execute(stmt)
+        new_id = result.scalar_one()
+        project.kb.session().commit()
+        # add chunks
+        chunks_table=project.kb.db_tables["api_call_chunks"]
+        chunks=self.chunks
+        embeddings=self.embeddings
+        for chunk_num, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
+            stmt=insert(chunks_table).values(
+                id=new_id,
+                chnuk_id=chunk.chuk_id,
+                chunk_text=chunk,
+                chunk_embedding=embedding,
+        )
+            project.kb.session().execute(stmt)
+            project.kb.session().commit()
+
+    @classmethod
+    def from_kb(cls, project, id):
+        api_table = project.kb.db_tables["api_call"]
+        api_chunks_table=project.kb.db_tables["api_call_chunks"]
+
+        main_stmt=select(api_table.c.class_name,
+                          api_table.c.method_name,
+                          api_table.c.params,
+                          api_table.c.results,
+                          api_table.c.query_time,
+                          api_table.c.flat).where(api_table.c.id == id)
+
+        results=project.kb.session().execute(main_stmt).fetchall()
+        if len(results)==0:
+            raise NoResultFound("Could not find an api call with id {}".format(id))
+
+        if len(results)>1:
+            raise DataIntegrityError("Found more than one api call with id {}".format(id))
+
+        params = results[2]
+        args = params.get("args")
+        kwargs = params.get("kwargs")
+
+        call=ApiCall(
+            class_name=results[0][0],
+            method_name=results[0][1],
+            results=results[0][3],
+            args=args,
+            kwargs=kwargs,
+            query_time=results[0][4]
+        )
+        call.flat=results[0][5]
+
+        #get embeddings and chunks
+        chunks_stmt=select(api_chunks_table.c.chunk_text,
+                           api_chunks_table.c.chunk_embedding).where(api_chunks_table.c.api_call_id == id)
+
+        results=project.kb.session().execute(chunks_stmt).fetchall()
+        if len(results)==0:
+            warnings.warn("Could not find an api chunk with id {}, but you can still call the "
+                          "class methods to generate these".format(id))
+        else:
+            call.chunks=[item[0] for item in results]
+            call.embeddings=[item[1] for item in results]
+
+        return call
+
