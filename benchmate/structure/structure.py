@@ -17,6 +17,10 @@ class StructureInfo:
     file: str
     chains: List[str] = None
 
+    @classmethod
+    def to_kb(cls, kb):
+        pass
+
 #TODO deal with models
 class Structure:
     def __init__(self, name, file=None, id=None, source="PDB", destination="."):

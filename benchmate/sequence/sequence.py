@@ -24,8 +24,10 @@ class SequenceInfo:
     sequence: str
     seq_type: str
     features: Optional [Dict]= None
-    msa_path: Optional[str] = None
-    blast_path: Optional[str] = None
+
+    @classmethod
+    def to_kb(cls, kb):
+        pass
 
 
 class Sequence:
@@ -233,13 +235,32 @@ class Sequence:
 
     def molecular_weight(self) -> float:
         """Approximate molecular weight in Daltons (average mass, subtract water for peptide bonds)."""
-        self._ensure_protein()
-        s = self.sequence.upper().replace("*", "")  # ignore terminal stop for mass
-        if not s:
-            return 0.0
-        masses = [AA_MASS.get(aa, AA_MASS['X']) for aa in s]
-        mw = sum(masses)
-        mw -= (len(s) - 1) * 18.01528  # subtract water for each peptide bond
+        if self.seq_type=="protein":
+            s = self.sequence.upper().replace("*", "")  # ignore terminal stop for mass
+            if not s:
+                return 0.0
+            masses = [AA_MASS.get(aa, AA_MASS['X']) for aa in s]
+            mw = sum(masses)
+            mw -= (len(s) - 1) * 18.01528  # subtract water for each peptide bond
+        elif self.seq_type == "dna":
+            DNA_WEIGHTS = {
+                'A': 313.21,
+                'T': 304.2,
+                'G': 329.21,
+                'C': 289.18,
+            }
+            s=self.sequence.upper()
+            mw=sum(DNA_WEIGHTS.get(base, 0) for base in s)
+        elif self.seq_type == "rna":
+            RNA_WEIGHTS = {
+                'A': 329.21,
+                'U': 306.17,
+                'T': 306.17,  # Treat T as U
+                'G': 345.21,
+                'C': 305.18,
+            }
+            s = self.sequence.upper()
+            mw = sum(RNA_WEIGHTS.get(base, 0) for base in s)
 
         return float(mw)
 

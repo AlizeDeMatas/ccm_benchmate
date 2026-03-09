@@ -11,7 +11,8 @@ from sqlalchemy.exc import NoResultFound
 from benchmate.project.utils import DataIntegrityError
 from benchmate.literature.literature import Paper
 
-
+#TODO this is probably broken, there are too many things to consider here. One of the main issues is the authors, I will not solve that problem
+# probably ever.
 
 @dataclass
 class PaperInfo:
@@ -32,8 +33,10 @@ class PaperInfo:
     figure_embeddings: Optional[np.ndarray] = None
     tables: Optional[list] = None
     table_embeddings: Optional[np.ndarray] = None
-    figure_interpretation: Optional[str] = None
-    table_interpretation: Optional[str] = None
+    figure_interpretation: Optional[list] = None
+    figure_interpretation_embeddings: Optional[np.ndarray] = None
+    table_interpretation: Optional[list] = None
+    table_interpretation_embeddings: Optional[np.ndarray] = None
     download_link: str = None
     downloaded: bool = False
     file_path: str = None
@@ -67,12 +70,14 @@ class PaperInfo:
                                                          self.file_path,
                                                          self.openalex_info).returning(papers_table.c.paper_id)
         
-        paper_id = project.kb.session().execute(stms).scalar()
+        paper_id = project.kb.session().execute(stms).scalars().one()
 
-        for author in self.authors:  # TODO need to check if already in db
+        # TODO need to check if already in db, this is wrong because I need to get the author, id, I might give up on this
+        # altogether because there are so many things that can go wrong with this.
+        for author in self.authors:
             author_stms = insert(authors_table.c.paper_id,
                                  authors_table.c.name,
-                                 author.c.affiliation).values(paper_id,
+                                 authors_table.c.affiliation).values(paper_id,
                                                               author["name"],
                                                               author["affiliation"])
             project.kb.session().execute(author_stms)
@@ -128,7 +133,7 @@ class PaperInfo:
                 chunk_stms = insert(chunked_text_table.c.paper_id, chunked_text_table.c.chunk,
                                     chunked_text_table.c.chunk_embeddings).values(paper_id,
                                                                                   self.text_chunks[i],
-                                                                                  self.chunk_embeddings[i])
+                                                                                  self.chunk_embeddings[i].tolist())
                 project.kb.session().execute(chunk_stms)
 
         if self.references is not None:
@@ -224,7 +229,7 @@ class PaperInfo:
         if len(figures) == 0:
             paper.info.figures = None
         else:
-            paper.info.figures = [Image(figure[0]) for figure in figures]
+            paper.info.figures = [Image.open(io.BytesIO(figure[0])) for figure in figures]
             paper.info.figure_embeddings = [figure[1] for figure in figures]
             paper.info.figure_interpretation = [figure[2] for figure in figures]
             paper.info.figure_interpretation_embeddings = [figure[3] for figure in figures]
@@ -237,7 +242,7 @@ class PaperInfo:
         if len(tables) == 0:
             paper.info.tables = None
         else:
-            paper.info.tables = [Image(table[0]) for table in tables]
+            paper.info.tables = [Image.open(io.BytesIO(table[0])) for table in tables]
             paper.info.table_embeddings = [table[1] for table in tables]
             paper.info.table_interpretation = [table[2] for table in tables]
             paper.info.table_interpretation_embeddings = [table[3] for table in tables]
