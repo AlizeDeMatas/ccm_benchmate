@@ -11,9 +11,6 @@ from sqlalchemy.exc import NoResultFound
 from benchmate.project.utils import DataIntegrityError
 from benchmate.literature.literature import Paper
 
-#TODO this is probably broken, there are too many things to consider here. One of the main issues is the authors, I will not solve that problem
-# probably ever.
-
 @dataclass
 class PaperInfo:
     """
@@ -48,7 +45,6 @@ class PaperInfo:
 
     def to_kb(self, project):
         papers_table = project.kb.db_tables["papers"]
-        authors_table = project.kb.db_tables["authors"]
         figures_table = project.kb.db_tables["figures"]
         tables_table = project.kb.db_tables["tables"]
         body_text_table = project.kb.db_tables["body_text"]
@@ -61,26 +57,18 @@ class PaperInfo:
                       papers_table.c.project_id,
                       papers_table.c.abstract, papers_table.c.abstract_embeddings,
                       papers_table.c.pdf_url, papers_table.c.pdf_path,
-                      papers_table.c.openalex_response).values(self.id, self.id_type,
+                      papers_table.c.openalex_response,
+                      papers_table.c.authors).values(self.id, self.id_type,
                                                          self.title,
                                                          project.project_id,
                                                          self.abstract,
                                                          self.abstract_embeddings,
                                                          self.download_link,
                                                          self.file_path,
-                                                         self.openalex_info).returning(papers_table.c.paper_id)
+                                                         self.openalex_info,
+                                                         self.authors).returning(papers_table.c.paper_id)
         
         paper_id = project.kb.session().execute(stms).scalars().one()
-
-        # TODO need to check if already in db, this is wrong because I need to get the author, id, I might give up on this
-        # altogether because there are so many things that can go wrong with this.
-        for author in self.authors:
-            author_stms = insert(authors_table.c.paper_id,
-                                 authors_table.c.name,
-                                 authors_table.c.affiliation).values(paper_id,
-                                                              author["name"],
-                                                              author["affiliation"])
-            project.kb.session().execute(author_stms)
 
         if self.figures is not None:
             for i in range(len(self.figures)):
@@ -173,7 +161,6 @@ class PaperInfo:
     @classmethod
     def from_kb(cls, project, id):
         papers_table = project.kb.db_tables["papers"]
-        authors_table = project.kb.db_tables["authors"]
         figures_table = project.kb.db_tables["figures"]
         tables_table = project.kb.db_tables["tables"]
         chunked_text_table = project.kb.db_tables["body_text_chunked"]
@@ -191,6 +178,7 @@ class PaperInfo:
             papers_table.c.pdf_url,
             papers_table.c.pdf_path,
             papers_table.c.openalex_response,
+            papers_table.c.authors,
         ).where(papers_table.c.paper_id == id)
         paper_info = project.kb.session().execute(selection).fetchall()
 
@@ -211,15 +199,7 @@ class PaperInfo:
             else:
                 paper.info.downloaded = False
             paper.info.openalex_response = paper_info[0][8]
-
-        authors = select(authors_table.c.name, authors_table.c.affiliation).where(authors_table.c.paper_id == id)
-        authors = project.kb.session().execute(authors).fetchall()
-        paper.info.authors = []
-        for author in authors:
-            auth = {}
-            auth["name"] = author[0]
-            auth["affiliation"] = author[1]
-            paper.info.authors.append(auth)
+            paper.info.authors = paper_info[0][9]
 
         figures = select(figures_table.c.image_blob,
                          figures_table.c.figure_embeddings,

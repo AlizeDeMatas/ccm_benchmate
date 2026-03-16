@@ -190,7 +190,7 @@ class Paper:
 
         return abstract_text, title, authors
 
-    def search_info(self):
+    def search_info(self, filter_openalex=False):
         """
         Check if pmc id is available, if so build download link from that
         search openalex for the paper info and download link
@@ -209,7 +209,7 @@ class Paper:
                 if pmc_link is not None:
                     download_link = pmc_link.replace("ftp://", "https://", 1)
 
-        openalex_info = search_openalex(id_type=self.info.id_type, paper_id=self.info.id)
+        openalex_info = search_openalex(id_type=self.info.id_type, paper_id=self.info.id, filter=filter_openalex)
 
         if download_link is None:
             if openalex_info is None:

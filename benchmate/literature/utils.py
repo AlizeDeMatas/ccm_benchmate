@@ -1,7 +1,5 @@
 import os
 import tarfile
-
-import torch
 import json
 
 from benchmate.utils.general_utils import *
@@ -67,7 +65,7 @@ def download_tar(download_link, file):
 
 #This is not for the end user, this is for the developers
 def filter_openalex_response(response, fields=["id", "ids", "doi", "title", "topics", "keywords", "concepts",
-                "mesh", "best_oa_location", "referenced_works", "related_works",
+                "mesh", "best_oa_location", "referenced_works", "related_works", "source",
                 "cited_by_api_url", "datasets"]):
     """
     filters the openalex response to only include the specified fields
@@ -76,9 +74,10 @@ def filter_openalex_response(response, fields=["id", "ids", "doi", "title", "top
     :return: new response with only the specified fields
     """
     if fields is None:
-        fields=["id", "ids", "doi", "title", "topics", "keywords", "concepts",
-                "mesh", "best_oa_location", "referenced_works", "related_works",
+        fields = ["id", "ids", "doi", "title", "topics", "keywords", "concepts",
+                "mesh", "best_oa_location", "referenced_works", "related_works", "source",
                 "cited_by_api_url", "datasets"]
+
     new_response = {}
     for field in fields:
         if field in response.keys():
@@ -87,7 +86,7 @@ def filter_openalex_response(response, fields=["id", "ids", "doi", "title", "top
 
 # the whole citeby references etc need to be removed and then re-written as a separate function
 # I give up on semantic scholar, it is unlikely I will get an api key, and openalex is good enough
-def search_openalex(id_type, paper_id, fields=None):
+def search_openalex(id_type, paper_id, filter=False, fields=None):
     """
     api call for openalex to retrieve paper information
     :param id_type: pubmed or arxiv
@@ -111,11 +110,12 @@ def search_openalex(id_type, paper_id, fields=None):
     response = requests.get(url)
     try:
         response = json.loads(response.content.decode().strip())
-        new_response = filter_openalex_response(response, fields)
+        if filter:
+            response = filter_openalex_response(response, fields)
     except:
         raise ValueError("Could not retrieve information for paper id {} of type {}".format(paper_id, id_type))
 
-    return new_response
+    return response
 
 # its here, not sure if I will use it, still waiting for an api key, feel like not gonna happen
 def search_semantic_scholar(paper_id, id_type, api_key=None, fields=None):
@@ -154,13 +154,15 @@ def search_semantic_scholar(paper_id, id_type, api_key=None, fields=None):
         else:
             warnings.warn("field '{}' not available".format(field))
 
+    url=base_url.format(paper_id, ",".join(acceptable_fields))
     if api_key is not None:
         headers = {
             'X-API-Key': api_key,
             'Accept': 'application/json'
         }
-    url=base_url.format(paper_id, ",".join(acceptable_fields))
-    response = requests.get(url)
+        response = requests.get(url, headers=headers)
+    else:
+        response = requests.get(url)
     response.raise_for_status()
     response=json.loads(response.content.decode().strip())
     return response
