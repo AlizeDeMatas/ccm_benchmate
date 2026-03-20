@@ -12,7 +12,7 @@ pymupdf4llm
 pymupdf
 layoutparser
 SQLAlchemy==1.4.54
-git+https://github.com/facebookresearch/detectron2.git@ff53992b1985b63bd3262b5a36167098e3dada02
+# git+https://github.com/facebookresearch/detectron2.git@ff53992b1985b63bd3262b5a36167098e3dada02
 git+https://github.com/celalp/usearch-molecules.git
 chonkie[all]
 pysam
@@ -24,10 +24,10 @@ pytest
 docker
 openpyxl
 model2vec
-psycopg2
+psycopg2-binary
 pytesseract
 rdkit
 pytest
 pytest-cov
-flash_attn
+# flash_attn
 bitsandbytes
