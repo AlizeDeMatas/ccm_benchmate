@@ -1,6 +1,15 @@
+---
+layout: default
+title: Full Docker Image
+parent: Containerization
+nav_order: 2
+---
+
 # Benchmate Docker Image
 
-This document covers how to build the Benchmate container image locally, run a few smoke tests, and optionally push the image to Docker Hub.
+This document covers how to build the `full` Benchmate container image locally, run a few smoke tests, and optionally push the image to Docker Hub.
+
+For the reduced container variants (`base`, `db-cpu`, and `gpu-nodb`), see [DOCKER_VARIANTS.md](DOCKER_VARIANTS.md).
 
 ## 1. Build
 

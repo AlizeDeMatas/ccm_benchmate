@@ -1,6 +1,13 @@
-# Benchmate Container Usage
+---
+layout: default
+title: Launcher Usage
+parent: Containerization
+nav_order: 4
+---
 
-This document explains how to use the Benchmate launcher script for Docker and Singularity / Apptainer.
+# Benchmate Container Launcher Usage
+
+This document explains how to use the Benchmate launcher script for Docker and Singularity / Apptainer. Note this is specifically designed for the `full` version of the Benchmate Docker build, and has been partially tested with `db-cpu`. It is meant to make running PostgreSQL easier so not really helpful for the `base` and `gpu-nodb` builds.
 
 ## Get The Launcher Script
 
