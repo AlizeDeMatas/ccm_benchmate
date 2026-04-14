@@ -2,8 +2,6 @@ import pandas as pd
 from tqdm import tqdm
 import json
 
-
-
 #TODO annotations matching
 
 def parse_gtf_attributes(attributes_str):
@@ -249,6 +247,18 @@ def insert_genome(gtf, engine, name, description, genome_fasta,
     print("Finished genome database")
     return genome_id, chrom_ids
 
+
+class CustomRange:
+    #TODO this needs to create a mapping between the genome and the range based on the chromosomes
+    def __init__(self, genome, grange):
+        pass
+
+    @classmethod
+    def from_genome(cls, genome, grange):
+        pass
+
+    def to_genome(self, genome):
+        pass
 
 
 

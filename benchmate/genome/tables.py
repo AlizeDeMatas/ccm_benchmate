@@ -84,3 +84,12 @@ class Introns(StandAloneBase):
     start=Column(Integer)
     end=Column(Integer)
     annotations = Column(JSON)
+
+class CustomRanges(StandAloneBase):
+    __tablename__ = 'custom_ranges'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    chrom_id = Column(Integer, ForeignKey('chrom.id'), nullable=False)
+    start = Column(Integer, nullable=False)
+    end = Column(Integer, nullable=False)
+    strand = Column(String, nullable=False)
+    annotations=Column(JSON)
