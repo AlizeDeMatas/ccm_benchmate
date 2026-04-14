@@ -402,8 +402,8 @@ class Sequence:
         info=SequenceInfo.from_kb(project, id)
         return cls(name=info.name, sequence=info.sequence, seq_type=info.seq_type, features=info.features)
 
-    def to_kb(self):
-        return SequenceInfo.to_kb(self)
+    def to_kb(self, project):
+        return self.info.to_kb(project)
 
     def to_fasta(self, file_path: str) -> None:
         """Write this sequence to a FASTA file."""

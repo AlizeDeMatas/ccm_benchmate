@@ -339,3 +339,13 @@ class Paper:
 
     def __repr__(self):
         return "Paper(id={}, id_type={}, title={})".format(self.info.id, self.info.id_type, self.info.title)
+
+    @classmethod
+    def from_kb(cls, project, id):
+        info=PaperInfo.from_kb(project, id)
+        paper=cls(paper_id=info.id, id_type=info.id_type)
+        paper.info=info
+        return paper
+
+    def to_kb(self, project):
+        return self.info.to_kb(project)
