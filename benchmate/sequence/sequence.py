@@ -397,6 +397,14 @@ class Sequence:
             rec = records[0]
             return cls(name=rec.id, sequence=str(rec.seq), seq_type=seq_type)
 
+    @classmethod
+    def from_kb(cls, project, id):
+        info=SequenceInfo.from_kb(project, id)
+        return cls(name=info.name, sequence=info.sequence, seq_type=info.seq_type, features=info.features)
+
+    def to_kb(self):
+        return SequenceInfo.to_kb(self)
+
     def to_fasta(self, file_path: str) -> None:
         """Write this sequence to a FASTA file."""
         rec = SeqIO.SeqRecord(Seq.Seq(self.sequence), id=self.name, description="")
