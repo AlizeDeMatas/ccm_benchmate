@@ -88,6 +88,121 @@ class GenomicRange:
             else:
                 return self.ranges == other.ranges
 
+    def __ne__(self, other, ignore_strand=False):
+        if not isinstance(other, GenomicRange):
+            return True
+        elif self == other:
+            return False
+        else:
+            return True
+
+class CompoundGenomicRange:
+    """
+    This is similar to a GenomicRangesList but the compound range describes a single discontinuous range.
+    This is for representing things like structural variants such as inversions, translocations, etc.
+    """
+    def __init__(self, granges:list[GenomicRange], annotation:dict=None):
+        """Initialize a CompoundGenomicRange object."""
+        for item in granges:
+            assert isinstance(item, GenomicRange)
+        self.ranges=granges
+        self.annotation=annotation
+
+    def shift(self, amount, index=None):
+        if index is None:
+            for i in range(len(self.ranges)):
+                self.ranges[i].shift(amount)
+        else:
+            self.ranges[index]=self.ranges[index].shift(amount)
+        return self
+
+    def extend(self, start, end, index=None):
+        if index is None:
+            for i in range(len(self.ranges)):
+                self.ranges[i].extend(start, end)
+        else:
+            self.ranges[index]=self.ranges[index].extend(start, end)
+        return self
+
+    def overlaps(self, other, ignore_strand=False, type="any"):
+        """
+        Find overlaps between this CompoundGenomicRange and another or another GenomicRange.
+        :param other: GenomicRange or CompoundGenomicRange to compare with
+        :param ignore_strand: whether to ignore strand information when finding overlaps
+        :param type: a list of booleans or tuples of booleans indicating whether each range overlaps with the other
+        if tuple if the first element of self ovelaps with ith range of other, the second element is the index of the range in other
+        :return: list of booleans or tuples (bool, int) indicating whether each range overlaps with the other
+        """
+        overlap_types=["exact", "within", "start", "end", "any"]
+        if type not in overlap_types:
+            raise ValueError(f"overlap_type must be one of {overlap_types}")
+        olaps=[]
+        if isinstance(other, GenomicRange):
+            for i in range(len(self.ranges)):
+                if self.ranges[i].overlaps(other.ranges[i], ignore_strand=ignore_strand, type=type):
+                    olaps.append(True)
+                else:
+                    olaps.append(False)
+
+        elif isinstance(other, CompoundGenomicRange):
+            for i in range(len(self.ranges)):
+                for j in range(len(other.ranges)):
+                    if self.ranges[i].overlaps(other.ranges[j], ignore_strand=ignore_strand, type=type):
+                        olaps.append((True, j))
+        else:
+            raise ValueError("other must be GenomicRange or CompoundGenomicRange")
+
+        return olaps
+
+    def distance(self, other, ignore_strand=False):
+        """
+        find the distance between this CompoundGenomicRange and another or another GenomicRange or CompoundGenomicRange..
+        :param other: GenomicRange or CompoundGenomicRange to compare with
+        :param ignore_strand: whether to ignore strand information when finding distances
+        :return: list of distances between each range and the genomic range, if a compound range, a tuple with
+        (distance, the index of the range in the compound range)
+        """
+        distances=[]
+        if isinstance(other, GenomicRange):
+            for i in range(len(self.ranges)):
+                distances.append(self.ranges[i].distance(other))
+        elif isinstance(other, CompoundGenomicRange):
+            for i in range(len(self.ranges)):
+                for j in range(len(other.ranges)):
+                    distances.append((self.ranges[i].distance(other.ranges[j]), j))
+        else:
+            raise ValueError("other must be GenomicRange or CompoundGenomicRange")
+
+        return distances
+
+    def add_annotation(self, key, value):
+        """Add or update an annotation."""
+        self.annotations[key] = value
+
+    def __str__(self):
+        return f"CompoundGenomicRange with {len(self.ranges)} ranges)"
+
+    def __repr__(self):
+        return f"CompoundGenomicRange with {len(self.ranges)} ranges)"
+
+    def __len__(self):
+        return len(self.ranges)
+
+    def __eq__(self, other):
+        if len(self.ranges)!=len(other.ranges):
+            return False
+        for i in range(len(self.ranges)):
+            if self.ranges[i]!=other.ranges[i]:
+                return False
+        return True
+
+    def __ne__(self, other):
+        if not isinstance(other, CompoundGenomicRange):
+            return True
+        elif self==other:
+            return False
+        else:
+            return True
 
 class GenomicRangesList:
     def __init__(self, granges):
