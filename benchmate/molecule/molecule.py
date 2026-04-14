@@ -13,6 +13,7 @@ from rdkit.Chem.rdFingerprintGenerator import GetMorganGenerator, GetMorganFeatu
 from benchmate.project.utils import DataIntegrityError
 from benchmate.molecule.utils import *
 
+
 @dataclass
 class MoleculeInfo:
     name: str
@@ -25,24 +26,15 @@ class MoleculeInfo:
     maccs: Optional[np.ndarray] = None
     inchikey: Optional[str] = None
     properties: Optional[dict] = None
+    features: Optional[dict] = None
 
     def to_kb(self, project):
         molecule_table = project.kb.db_tables["molecule"]
-        mol_stms = insert(molecule_table.c.project_id,
-                          molecule_table.c.name,
-                          molecule_table.c.smiles,
-                          molecule_table.c.ecfp4,
-                          molecule_table.c.fcfp4,
-                          molecule_table.c.maccs,
-                          molecule_table.c.properties, ).values(project.project_id,
-                                                                self.name,
-                                                                self.smiles,
-                                                                self.ecfp4,
-                                                                self.fcfp4,
-                                                                self.maccs,
-                                                                self.properties, ).returning(molecule_table.c.id)
-        results=project.kb.session().execute(mol_stms)
-        mol_id=results.scalar.one()
+        mol_stms = insert().values(project.project_id, self.name, self.smiles, self.fingerprint_dim,
+                                   self.fingerprint_radius, self.ecfp4, self.fcfp4, self.maccs, self.inchikey,
+                                   self.properties, self.features).returning(molecule_table.c.id)
+        results = project.kb.session().execute(mol_stms)
+        mol_id = results.scalar.one()
         project.kb.session().commit()
 
         return mol_id
@@ -50,21 +42,18 @@ class MoleculeInfo:
     @classmethod
     def from_kb(cls, project, id):
         molecule_table = project.kb.db_tables["molecule"]
-        stmt=select(molecule_table.c.name,
-                    molecule_table.c.smiles,
-                    molecule_table.c.fingerprint_dim,
-                    molecule_table.c.fingerprint_radius,
-                    molecule_table.c.features).where(molecule_table.c.id == id)
+        stmt = select(molecule_table.c.name, molecule_table.c.smiles, molecule_table.c.fingerprint_dim,
+                      molecule_table.c.fingerprint_radius, molecule_table.c.features).where(molecule_table.c.id == id)
 
-        results=project.kb.session().execute(stmt).fetchall()
+        results = project.kb.session().execute(stmt).fetchall()
 
-        if len(results)==0:
+        if len(results) == 0:
             raise NoResultFound("Could not find a molecule with id {}".format(id))
 
-        if len(results)>1:
+        if len(results) > 1:
             raise DataIntegrityError("Found more than one molecule with id {}".format(id))
 
-        mol=Molecule(results[0][0], results[0][1], results[0][2], results[0][3])
+        mol = cls(results[0][0], results[0][1], results[0][2], results[0][3])
         return mol
 
 
@@ -73,6 +62,7 @@ class Molecule:
     Molecule class to represent chemical structures using SMILES or InChI. this will include methods for different property
     calculations and structure comparisons using usearch molecules.
     """
+
     def __init__(self, name, smiles, fingerprint_dim=2048, radius=2):
         """
 
@@ -81,10 +71,10 @@ class Molecule:
         :param fingerprint_dim:
         :param radius:
         """
-        self.info=MoleculeInfo(name=name, smiles=smiles)
+        self.info = MoleculeInfo(name=name, smiles=smiles)
         self.info.mol = Chem.MolFromSmiles(smiles)
         self.info.fingerprint_dim = fingerprint_dim
-        self.info.fingerprint_radius=radius
+        self.info.fingerprint_radius = radius
         self.info.ecfp4 = self._fingerprint(type="ecfp4")
         self.info.fcfp4 = self._fingerprint(type="fcfp4")
         self.info.maccs = self._fingerprint(type="maccs")
@@ -116,28 +106,38 @@ class Molecule:
         results = data.search(smiles=self.info.smiles, n=n)
         return results
 
+    # TODO
+    def search_kb(self, metric="tanimoto", using="ecfp4"):
+        """
+        very similar to above but this will search the database, this is for small searches, if you have billions of molecules
+        you are better off creating a library and using that.
+        :param metric:
+        :param using:
+        :return:
+        """
+        pass
+
     def similarity(self, other, fingerprint):
         if not isinstance(other, Molecule):
             raise ValueError("other must be an instance of Molecule")
 
-        if fingerprint=="ecfp4":
+        if fingerprint == "ecfp4":
             return tanimoto(self.info.ecfp4, other.info.ecfp4)
-        elif fingerprint=="fcfp4":
+        elif fingerprint == "fcfp4":
             return tanimoto(self.info.fcfp4, other.info.fcfp4)
-        elif fingerprint=="maccs":
+        elif fingerprint == "maccs":
             return tanimoto(self.info.maccs, other.info.maccs)
         else:
             raise NotImplementedError("method must be ecfp4 or fcfp4 or maccs")
 
-
     def _fingerprint(self, type="ecfp4"):
-        if type=="maccs":
+        if type == "maccs":
             return rdMolDescriptors.GetMACCSKeysFingerprint(self.info.mol)
-        elif type=="fcfp4":
+        elif type == "fcfp4":
             fcfp_invariants = GetMorganFeatureAtomInvGen()
             fcfp_generator = GetMorganGenerator(radius=2, fpSize=2048, atomInvariantsGenerator=fcfp_invariants)
             return fcfp_generator.GetFingerprint(self.info.mol)
-        elif type=="ecfp4":
+        elif type == "ecfp4":
             ecfp_generator = GetMorganGenerator(radius=2, fpSize=2048)
             return ecfp_generator.GetFingerprint(self.info.mol)
         else:
@@ -150,9 +150,8 @@ class Molecule:
         calculate all the descriptors that rdkit can mange and return a dictionary of them
         :return: a dictionary of properties
         """
-        props=Chem.Descriptors.CalcMolDescriptors(self.info.mol)
+        props = Chem.Descriptors.CalcMolDescriptors(self.info.mol)
         return props
-
 
     def generate_conformers(self, n, prune_thres=0.5, optimize_geom=True):
         """
@@ -165,13 +164,12 @@ class Molecule:
         params = AllChem.ETKDGv3()
         params.pruneRmsThresh = prune_thres
 
-        mol_h=Chem.AddHs(self.info.mol)
-        conformers=AllChem.EmbedMultipleConfs(mol_h, numConformers=n, params = params)
+        mol_h = Chem.AddHs(self.info.mol)
+        conformers = AllChem.EmbedMultipleConfs(mol_h, numConformers=n, params=params)
         if optimize_geom:
             AllChem.MMFFOptimizeMoleculeConfs(mol_h)
 
         return mol_h, list(conformers)
-
 
     def inchikey(self) -> str:
         return Chem.inchi.MolToInchiKey(self.info.mol)
@@ -199,10 +197,13 @@ class Molecule:
         else:
             return True
 
+    @classmethod
+    def from_kb(cls, project, id):
+        info=MoleculeInfo.from_kb(project, id)
+        molecule=cls(name=info.name, smiles=info.smiles, fingerprint_dim=info.fingerprint_dim,
+                          radius=info.fingerprint_radius)
+        molecule.info=info
+        return molecule
 
-
-
-
-
-
-
+    def to_kb(self, project):
+        return self.info.to_kb(project)

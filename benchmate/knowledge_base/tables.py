@@ -6,7 +6,7 @@ from sqlalchemy.orm import declarative_base
 
 from sqlalchemy import (
     Column, ForeignKey, Integer, String, DateTime,
-    Text, Float, types, Computed, Index,
+    Text, Float, types, Computed, Index, LargeBinary,
     JSON, LargeBinary, UniqueConstraint
 )
 from sqlalchemy.dialects.postgresql import TSVECTOR, JSONB, ARRAY
@@ -227,6 +227,15 @@ class Introns(Base):
     end=Column(Integer)
     annotations = Column(JSONB)
 
+class CustomRanges(Base):
+    __tablename__ = 'custom_ranges'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    chrom_id = Column(Integer, ForeignKey('chrom.id'), nullable=False)
+    start = Column(Integer, nullable=False)
+    end = Column(Integer, nullable=False)
+    strand = Column(String, nullable=False)
+    annotations=Column(JSON)
+
 # sequence tables
 class Sequence(Base):
     __tablename__ = 'sequence'
@@ -244,8 +253,8 @@ class Structure(Base):
     project_id = Column(Integer, ForeignKey('project.id'))
     name=Column(String)
     chains=Column(JSONB) #all the chaing is the pdb, I'm just storing the whole thing here not sure if a good idea
-    structure=Column(Text) #this is a pdb dump
-    features=Column(JSONB)
+    atoms=Column(LargeBinary) #this is a pdb dump
+    annotations=Column(JSONB)
 
 class Molecule(Base):
      __tablename__="molecule"
@@ -253,7 +262,6 @@ class Molecule(Base):
      project_id = Column(Integer, ForeignKey('project.id'))
      name=Column(String)
      smiles=Column(String)
-     bound_structure=Column(ForeignKey('structure.id'))
      fingerprint_dim=Column(Integer, default=2048)
      fingerprint_radius=Column(Integer, default=2)
      ecfp4=Column(ARRAY(Integer, dimensions=1))

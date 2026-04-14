@@ -1,8 +1,7 @@
+from functools import cached_property
 
 import sqlalchemy
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.sql import operators
-from sqlalchemy.dialects import postgresql
 
 from Bio import Seq
 import pysam
@@ -12,7 +11,7 @@ from benchmate.genome.tables import *
 from benchmate.genome.utils import insert_genome
 from benchmate.ranges.genomicranges import *
 
-#TODO the genome class currently is not compatible with kb
+#TODO explain the class and how it works
 class Genome:
     def __init__(self, genome_fasta, gtf, name, db_conn, description=None,
                  transcriptome_fasta=None, standalone=False,
@@ -92,8 +91,10 @@ class Genome:
             warnings.warn("No description provided, using default description 'my genome'")
             self.description="my genome"
 
+        self.table_annotations={}
 
-    def genes(self, gene_ids=None, range=None, ignore_strand=True):
+
+    def genes(self, ids=None, range=None, ignore_strand=True):
         """
         Gene id or range if range is provided it will return the genes in that range depending on the overlap type
         :param id: Gene id, that used in the gtf file
@@ -121,8 +122,8 @@ class Genome:
         # for supporting multiple genomes
         query=query.filter(chroms_table.c.id.in_(self.chrom_ids["id"].tolist()))
 
-        if gene_ids is not None:
-            query = query.filter(genes_table.c.gene_id.in_(gene_ids))
+        if ids is not None:
+            query = query.filter(genes_table.c.gene_id.in_(ids))
 
 
         if range is not None:
@@ -221,7 +222,7 @@ class Genome:
         gdict=GenomicRangesDict(res_dict.keys(), res_dict.values())
         return gdict
 
-    def exons(self, transcript_ids=None, range=None, group_by_transcript=True, ignore_strand=True):
+    def exons(self, transcript_ids=None, ids=None, range=None, group_by_transcript=True, ignore_strand=True):
         """
         same as genes but will need to search by transcript not gene, if you do not know the transcript search for it with transcripts first
         :param transcript_id: return all exons for this transcript id
@@ -263,6 +264,11 @@ class Genome:
         if transcript_ids is not None:
             query = query.filter(transcripts_table.c.transcript_id.in_(transcript_ids))
 
+        if ids is not None:
+            if type(ids) is int:
+                ids = [ids]
+            query = query.filter(exons_table.c.id.in_(ids))
+
         if range is not None:
             query = query.filter(
                 chroms_table.c.chrom == range.chrom,
@@ -293,7 +299,7 @@ class Genome:
         gdict = GenomicRangesDict(res_dict.keys(), res_dict.values())
         return gdict
 
-    def coding(self, transcript_ids=None, range=None, group_by_transcript=True, ignore_strand=True):
+    def coding(self, transcript_ids=None, ids=None, range=None, group_by_transcript=True, ignore_strand=True):
         """
         same as exons return all the coding sequences for a transcript or a list of transcripts
         :param transcript_id: return all coding sequences for this transcript id
@@ -340,6 +346,11 @@ class Genome:
         if transcript_ids is not None:
             query = query.filter(transcripts_table.c.transcript_id.in_(transcript_ids))
 
+        if ids is not None:
+            if type(ids) is int:
+                ids = [ids]
+            query = query.filter(cds_table.c.id.in_(ids))
+
         if range is not None:
             query = query.filter(
                 chroms_table.c.chrom == range.chrom,
@@ -373,7 +384,7 @@ class Genome:
         return gdict
 
 
-    def three_utr(self, transcript_ids=None, range=None, ignore_strand=True):
+    def three_utr(self, transcript_ids=None, ids=None, range=None, ignore_strand=True):
         """
         return all the 3' utrs for a transcript or a list of transcripts
         :param transcript_ids: return 3' utrs for these transcript ids
@@ -412,6 +423,11 @@ class Genome:
 
         if transcript_ids is not None:
             query = query.filter(transcripts_table.c.transcript_id.in_(transcript_ids))
+
+        if ids is not None:
+            if type(ids) is int:
+                ids = [ids]
+            query = query.filter(three_utr_table.c.id.in_(ids))
 
         if range is not None:
             query = query.filter(
@@ -593,6 +609,37 @@ class Genome:
         gdict = GenomicRangesDict(res_dict.keys(), res_dict.values())
         return gdict
 
+    #TODO this supports querying single ranges, I need to be able to query multiple
+    def custom_range(self, grange=None):
+        chroms_table = self.tables['chrom']
+        custom_ranges_table = self.tables['custom_ranges']
+
+        chrom_id_subq = sqlalchemy.select(chroms_table.c.id).where(
+            (chroms_table.c.chrom == grange.chrom) & (chroms_table.c.genome_id == self.genome_id)).subquery()
+
+        query = (sqlalchemy.select(
+            custom_ranges_table.c.id,
+            custom_ranges_table.c.chrom,
+            custom_ranges_table.c.start,
+            custom_ranges_table.c.end,
+            custom_ranges_table.c.strand,
+            custom_ranges_table.c.annotations).where(
+            chrom_id_subq.c.id==chrom_id_subq.c.id
+        ))
+
+        if grange is not None:
+            query=query.filter(
+                custom_ranges_table.c.start == grange.ranges.start,
+                custom_ranges_table.c.end == grange.ranges.end,
+                custom_ranges_table.c.strand == grange.strand
+            )
+
+        result = self.session.execute(query).fetchall()
+        if len(result) == 0:
+            return None
+        else:
+            return GenomicRange(result[0][1], result[0][2], result[0][3], result[0][4], result[0][5])
+    
     def get_sequence(self, genomic_range, type='genome'):
         """
         Get the sequence of a genomic range. This takes a single genomc range you can iterate over a GenomicRangeList or GenomicRangeDict
@@ -632,8 +679,7 @@ class Genome:
         if type(annots) != dict:
             raise ValueError(f"Annotation type {type(annots)} not supported. They must be dictionaries")
 
-        if table not in self.table_names:
-            raise ValueError(f"Table {table} is not a valid table. Valid tables are {','.join(self.table_names)}")
+        table=self._get_table(table)
 
         try:
             row_id=int(row_id)
@@ -668,6 +714,92 @@ class Genome:
         else:
             raise ValueError("The id returned 0 row, please make sure that the id you provided is correct")
 
+    #TODO hacky not DRY, needs testing
+    def search_annotation(self, table, values=None):
+        """
+        search annotations in the database for a specific key or value in a table
+        :param table: this determines what kinds of features you are searching genens, transcripts etc
+        :param values: search all the values of all keys if keys is none otherwise search those keys and return matching values
+        :return: genomicRangesDict object with the matching rows
+        """
+        method_dict={
+            "gene":self.genes,
+            "transcript":self.transcripts,
+            "five_utr":self.five_utr,
+            "three_utr":self.three_utr,
+            "intron":self.introns,
+            "exon":self.exons,
+            "coding":self.coding,
+            "custom_ranges":self.custom_range,
+        }
+        table = self._get_table(table)
+
+        if isinstance(values, [str, int, float]):
+            values = [values]
+
+        j = sqlalchemy.func.json_each(table.c.annotations).table_valued(
+            "key", "value", "type", "path"
+        )
+        if self.db.dialect.name == 'sqlite':
+            if isinstance(values, dict):
+                stmt = (
+                    sqlalchemy.select(table.c.id)
+                    .select_from(table.c.annotations.join(j, sqlalchemy.true()))
+                    .where(
+                        j.c.key == "role",
+                        j.c.value == "admin",
+                    )
+                )
+            elif isinstance(values, list):
+                j = sqlalchemy.func.json_each(table.c.annotations).table_valued(
+                    "key", "value", "type", "path"
+                )
+
+                stmt = (
+                    sqlalchemy.select(table.c.id)
+                    .select_from(table.join(j, sqlalchemy.true()))
+                    .where(j.c.value.in_(values)))
+
+            else:
+                raise ValueError(f"Annotation type {type(values)} not supported. They must be a dictionary, list or a single value")
+
+
+        elif self.db.dialect.name == 'postgresql':
+            if isinstance(values, dict):
+                stmt = sqlalchemy.select(table).where(
+                    sqlalchemy.func.jsonb_path_exists(
+                        table.c.annotations,
+                        "$.** ? (@.key() == $k && @ == $v)",
+                        {"k": list(values.keys()), "v": list(values.values())},
+                    )                )
+            elif isinstance(values, list):
+                stmt = sqlalchemy.select(table.c.id).where(
+                    table.c.annotations["tags"].op("?|")(values)
+                )
+            else:
+                raise ValueError(
+                    f"Annotation type {type(values)} not supported. They must be a dictionary, list or a single value")
+
+        #these are just the ids now I need to get the actual thing
+        ids = [item[0] for item in self.session.execute(stmt).fetchall()]
+        method=method_dict[table.name]
+
+        results=method(ids=ids)
+        return results
+
+    # this is here but I am not sure if this is reliable or even performant so commenting it out until testing
+    # @cached_property
+    # def search_fields(self, table):
+    #     db_table=self._get_table(table)
+    #     all_annots=sqlalchemy.select(db_table.c.annotations).where(db_table.c.annotations is not None)
+    #     fields=[]
+    #     for item in self.session.execute(all_annots).fetchall():
+    #         annots=item[0]
+    #         if annots is not None:
+    #             fields.extend(list(annots.keys()))
+    #     self.table_annotations[table]=list(set(fields))
+
+
     def _check_chroms(self, genome_chroms):
         fasta_chroms = self.genome_fasta.references
         for ref in fasta_chroms:
@@ -676,6 +808,12 @@ class Genome:
                     f"""Chromosome {ref} not found in the database, this step is not critical for database generation 
                     but it will effect sequence retrieval. If you are creating a new database, you may want to 
                     re-initialize the class with a different genome fasta file.""")
+
+    def _get_table(self, type):
+        types=["genome", "chrom", "gene", "transcript", "exon", "three_utr", "five_utr", "intron", "custom_ranges"]
+        if type not in types:
+            raise NotImplementedError(f"Type {type} not supported. Valid types are {','.join(types)}")
+        return self.tables[type]
 
 
     def __str__(self):
