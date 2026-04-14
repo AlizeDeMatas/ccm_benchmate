@@ -26,8 +26,24 @@ class SequenceInfo:
     features: Optional [Dict]= None
 
     @classmethod
-    def to_kb(cls, kb):
-        pass
+    def from_kb(cls, project, id):
+        sequence_table = project.kb.db_tables["sequence"]
+        stmt = sequence_table.select().where(sequence_table.c.id == id)
+        result = project.kb.session.execute(stmt)
+        seq_info = result.scalar_one()
+        return cls(name=seq_info.name, sequence=seq_info.sequence, seq_type=seq_info.seq_type, features=seq_info.features)
+
+    def to_kb(self, project):
+        sequence_table=project.kb.db_tables["sequence"]
+        stmt=sequence_table.insert().values(project_id=project.project_id,
+                                            name=self.name,
+                                       sequence=self.sequence,
+                                       seq_type=self.seq_type,
+                                       features=self.features).returning(sequence_table.c.id)
+        result=project.kb.session.execute(stmt)
+        seq_id=result.scalar.one()
+        project.kb.session.commit()
+        return seq_id
 
 
 class Sequence:
