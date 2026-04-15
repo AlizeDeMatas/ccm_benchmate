@@ -18,5 +18,6 @@ build
 notebooks
 *demo
 docs/_site
-
+.venv/
+.dockerignore
 

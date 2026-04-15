@@ -10,6 +10,6 @@ setup(
     packages=find_packages(),
     zip_safe=False,
     package_data={"": ["*.json"]},
-    scripts=["benchmate/scripts/run_mmseqs.sh"],
+    # scripts=["benchmate/scripts/run_mmseqs.sh"],
     include_package_data=True
 )
