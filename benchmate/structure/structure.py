@@ -1,29 +1,94 @@
 import os
 import subprocess
+import io
+import gzip
 from dataclasses import dataclass
+from typing import List, Union, Tuple, Optional, BinaryIO
 
-from typing import List, Union, Tuple, Optional
+from sqlalchemy import select
+from sqlalchemy.exc import NoResultFound
 
+import biotite
 from biotite.structure import distance, get_chains, alphabet, to_sequence
 from biotite.structure.io.pdb import PDBFile
 from biotite.structure.io.pdbx import CIFFile, get_structure
 
+from benchmate.utils.general_utils import compressed_stream_manager, decompressed_stream_manager
 from benchmate.structure.utils import *
 from benchmate.sequence.sequence import Sequence, SequenceList
+from benchmate.project.utils import DataIntegrityError
+
+
+
+def _read(file):
+    if file.endswith(".pdb"):
+        structure = PDBFile.read(file).get_structure()[0]
+    elif file.endswith(".cif") or file.endswith(".mmcif"):
+        file = CIFFile.read(file)
+        structure = get_structure(file, model=1)
+    else:
+        raise NotImplementedError("We can only read PDB or CIF files")
+    return structure
 
 @dataclass
 class StructureInfo:
     name: str
-    file: str
-    chains: List[str] = None
+    atoms: biotite.structure.AtomArray
+    chains: List
+    annotations: Optional[dict] = None
+
+    #TODO I need to figure out how to write pdb to stream and compress w/o i/o
+    def to_kb(self, project):
+        structure_table = project.kb.db_tables["structure"]
+        with compressed_stream_manager(self.atoms, self.biotite_pdb_transformer) as compressed_pdb:
+            row_data = {
+                "name": self.name,
+                'chains': self.chains,
+                "atoms": compressed_pdb,
+                "features": self.annotations
+            }
+
+            # 3. Execute the insert
+            stmt = structure_table().insert().values(**row_data).returning(structure_table.c.id)
+        return project.session.execute(stmt)
 
     @classmethod
-    def to_kb(cls, kb):
-        pass
+    def from_kb(cls, project, id):
+        structure_table = project.kb.db_tables["structure"]
+        stmt = select(structure_table).where(structure_table.c.id == id)
 
-#TODO deal with models
+        results = project.kb.session().execute(stmt).fetchall()
+
+        if len(results) == 0:
+            raise NoResultFound("Could not find a molecule with id {}".format(id))
+
+        if len(results) > 1:
+            raise DataIntegrityError("Found more than one molecule with id {}".format(id))
+
+        with gzip.GzipFile(fileobj=io.BytesIO(results[0][2]), mode='rb') as gz:
+            with io.TextIOWrapper(gz, encoding='utf-8') as text_wrapper:
+                pdb_file = PDBFile.read(text_wrapper)
+                atom_array = pdb_file.get_structure(model=1)
+
+        return cls(name=results[0][0], atoms=atom_array,
+                   chains=results[0][1], annotations=results[0][3])
+
+    def biotite_pdb_transformer(self, binary_stream):
+        # We wrap the binary stream in text mode ONLY when needed
+        with io.TextIOWrapper(binary_stream, encoding='utf-8', write_through=True) as text_wrapper:
+            pdb_file = PDBFile()
+            pdb_file.set_structure(self.atoms)
+            pdb_file.write(text_wrapper)
+
+    def biotite_pdb_reconstructor(self, binary_stream: BinaryIO):
+        # Wrap in text mode for the PDB parser
+        with io.TextIOWrapper(binary_stream, encoding='utf-8') as text_wrapper:
+            pdb_file = PDBFile.read(text_wrapper)
+            return pdb_file.get_structure(model=1)
+
+
 class Structure:
-    def __init__(self, name, file=None, id=None, source="PDB", destination="."):
+    def __init__(self, name, atoms, annotations:dict=None):
         """
         :param name: name
         :param file: pdb or cif file
@@ -31,27 +96,8 @@ class Structure:
         :param source: where to get the pdb from
         :param destination: where to download it, these are passed to structure.utils.download
         """
-
-        if file is not None:
-            self.file = os.path.abspath(file)
-            self.structure=self._read(file)
-
-        if file is None and id is not None:
-            self.file=os.path.abspath(download(id, source, destination))
-            self.structure = self._read()
-
-        self.info = StructureInfo(name=name, file=file)
-        self.info.chains = get_chains(self.structure)
-
-    def _read(self):
-        if self.file.endswith(".pdb"):
-            structure = PDBFile.read(self.file).get_structure()[0]
-        elif self.file.endswith(".cif") or self.file.endswith(".mmcif"):
-            file = CIFFile.read(self.file)
-            structure=get_structure(file, model=1)
-        else:
-            raise NotImplementedError("We can only read PDB or CIF files")
-        return structure
+        chains = get_chains(atoms)
+        self.info=StructureInfo(name, atoms, chains, annotations)
 
     #TODO parse these
     def align(self, other, destination):
@@ -61,11 +107,12 @@ class Structure:
         :param destination: where to save the output
         :return: result of the file, html output for alignment and rotation
         """
-        if self.file is None or other.pdb is None:
-            raise ValueError("Cannot align structures without a PDB")
+        file1=self.write(destination + "structure1.pdb")
+        file2=other.write(destination + "structure2.pdb")
 
-        command = ["mustang", "-i", os.path.abspath(self.file), os.path.abspath(other.pdb), "-o",
+        command = ["mustang", "-i", os.path.abspath(file1), os.path.abspath(file2), "-o",
                    os.path.abspath(destination), "-r", "ON"]
+
         process = subprocess.run(command)
         if process.returncode != 0:
             raise ValueError("There was an error aligning structures. See error below \n {}".format(process.stderr))
@@ -195,4 +242,30 @@ class Structure:
             atoms = [atom for atom in chain if atom.res_id == resid]
             return atoms
         raise KeyError(f"Unsupported key type: {type(key)}")
+
+    @classmethod
+    def from_file(cls, name, file, source=None, destination=None, id=None):
+        if file is not None:
+            file = os.path.abspath(file)
+            structure=_read(file)
+
+        if file is None and id is not None:
+            file=os.path.abspath(download(id, source, destination))
+            structure = _read(file)
+
+        if file is None and id is None:
+            raise ValueError("You must provide a file or an id as well as a source and destination")
+
+        atoms=structure.get_structure()
+        return cls(name, atoms)
+
+    @classmethod
+    def from_kb(cls, project, id):
+        info=StructureInfo.from_kb(project, id)
+        struct=cls(name=info.name, atoms=info.atoms, annotations=info.annotations)
+        struct.info=info
+        return struct
+
+    def to_kb(self, project):
+        return self.info.to_kb(project)
 
