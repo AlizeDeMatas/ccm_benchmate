@@ -281,6 +281,9 @@ class EBI:
     def get_client_status(self, client_job):
         return client_job.status
 
+    def get_client_result_types(self, client_job):
+        return client_job.result_types
+
     def get_client_result(self, client_job, result_type):
         return client_job.get_results(result_type)
 

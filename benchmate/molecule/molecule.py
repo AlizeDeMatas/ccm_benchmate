@@ -30,7 +30,7 @@ class MoleculeInfo:
 
     def to_kb(self, project):
         molecule_table = project.kb.db_tables["molecule"]
-        mol_stms = insert().values(project.project_id, self.name, self.smiles, self.fingerprint_dim,
+        mol_stms = molecule_table.insert().values(project.project_id, self.name, self.smiles, self.fingerprint_dim,
                                    self.fingerprint_radius, self.ecfp4, self.fcfp4, self.maccs, self.inchikey,
                                    self.properties, self.features).returning(molecule_table.c.id)
         results = project.kb.session().execute(mol_stms)

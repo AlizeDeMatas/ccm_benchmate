@@ -244,7 +244,7 @@ class Sequence(Base):
     name = Column(String)
     sequence = Column(String)
     type = Column(String)
-    features=Column(JSONB)
+    annotations=Column(JSONB)
 
 # structure tables
 class Structure(Base):
@@ -269,7 +269,7 @@ class Molecule(Base):
      maccs=Column(ARRAY(Integer, dimensions=1))
      inchi=Column(String)
      properties=Column(JSONB)
-     features=Column(JSONB)
+     annotations=Column(JSONB)
 
 class BaseVariant:
     """Abstract base class for all variant types."""
