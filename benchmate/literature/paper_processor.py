@@ -83,8 +83,8 @@ class PaperProcessor:
         :return: paper class instance with all the attributes filled
         """
         if extract:
-            model = lp.Detectron2LayoutModel(   model_path=self.config["lp_model"]["model_path"],
-                                            config_path=self.config["lp_model"]["config_path"],
+            model = lp.Detectron2LayoutModel(   model_path=self.config["layout_model"]["model"],
+                                            config_path=self.config["layout_model"]["config"],
                                             label_map={0: "Text", 1: "Title", 2: "List", 3: "Table", 4: "Figure"},
                                             extra_config=["MODEL.ROI_HEADS.SCORE_THRESH_TEST", 0.8],
                                                 )
@@ -95,16 +95,16 @@ class PaperProcessor:
 
         if embed_text:
             for paper in papers:
-                paper.info.text_chunks =self.inference.chunk(paper.info.text)
-                paper.info.chunk_embeddings= self.inference.text_embeddings(paper.info.text_chunks)
+                paper.info.text_chunks =self.inference.chunk_text(paper.info.text)
+                paper.info.chunk_embeddings= self.inference.embed_text(paper.info.text_chunks)
 
         if embed_images:
             for paper in papers:
                 if len(paper.info.figures)>0:
-                    paper.info.figure_embeddings = self.inference.image_embeddings(paper.info.figures)
+                    paper.info.figure_embeddings = self.inference.embed_image(paper.info.figures)
 
                 if len(paper.info.tables)>0:
-                    paper.info.table_embeddings = self.inference.image_embeddings(paper.info.tables)
+                    paper.info.table_embeddings = self.inference.embed_image(paper.info.tables)
 
         if interpret_images:
             for paper in papers:
@@ -112,19 +112,19 @@ class PaperProcessor:
                 paper.info.table_interpretation = []
                 if len(paper.info.figures) > 0:
                     for figure in paper.info.figures:
-                        paper.info.figure_interpretation.append(self.inference.image_interpretation(figure, self.config["figure_prompt"]))
+                        paper.info.figure_interpretation.append(self.inference.interpret_image(figure, self.config["figure_prompt"]))
 
                 if len(paper.info.tables) > 0:
                     for table in paper.info.tables:
-                        paper.info.table_interpretation.append(self.inference.image_interpretation(table, self.config["table_prompt"]))
+                        paper.info.table_interpretation.append(self.inference.interpret_image(table, self.config["table_prompt"]))
 
             for paper in papers:
                 paper.info.figure_interpretation_embeddings = []
                 paper.info.table_interpretation_embeddings = []
                 if len(paper.info.figure_interpretation) > 0:
-                    paper.info.figure_interpretation_embeddings.append(self.inference.text_embeddings(texts=paper.info.figure_interpretation))
+                    paper.info.figure_interpretation_embeddings.append(self.inference.embed_text(texts=paper.info.figure_interpretation))
 
                 if len(paper.info.table_interpretation) > 0:
-                    paper.info.table_interpretation_embeddings.append(self.inference.text_embeddings(texts=paper.info.table_interpretation))
+                    paper.info.table_interpretation_embeddings.append(self.inference.embed_text(texts=paper.info.table_interpretation))
         return papers
 

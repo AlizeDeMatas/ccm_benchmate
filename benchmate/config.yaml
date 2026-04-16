@@ -1,10 +1,24 @@
 
 
-name: benchmate
+project:
+  name: benchmate
+  description: "This is a description of the project with as many biological details as possible to help search algorithms 
+  especially in the literature to filter out irrelevant results. This should be at the very least a decent sized paragraph but 
+  not 100s pages of text. Currently there is no support for images or tables in (unless formatted as markdown) to be used in 
+  project descriptions."
+
+knowledge_base:
+  env_file: benchmate/kb/env.yaml #this is the file that contains all the environment variables that you want to use in the knowledge base mainly to connect to databases
+
 literature:
-  table_prompt: You are an expert biologist who is responsible for reading and interpreting scientific tables. For a given table from a scientific paper interpret the table. Do not provide comments on whether the table is well done or not. Do not provide extra text on describing that you are looking at table from a scientific publication. Give an overall conclusion about what the tables tells us.
-  figure_prompt: You are an expert biologist who is responsible for reading and interpreting scientific figures. For a given figure from a scientific paper interpret the figure. Do not provide comments on whether the figure is well done or not. Do not provide extra text on describing that you are looking at figure from a scientific publication. Whenever possible very briefly describe each sections of the figure and then give an overall conclusion about what the figure tells us
-  layout_model: #this is specific to literature, other models will not be using it
+  table_prompt: "You are an expert biologist who is responsible for reading and interpreting scientific tables. For a given table from a scientific paper interpret the table. 
+  Do not provide comments on whether the table is well done or not. Do not provide extra text on describing that you are looking at table from a scientific publication. 
+  Give an overall conclusion about what the tables tells us."
+  figure_prompt: "You are an expert biologist who is responsible for reading and interpreting scientific figures. For a given figure from a 
+  scientific paper interpret the figure. Do not provide comments on whether the figure is well done or not. Do not provide extra text on
+   describing that you are looking at figure from a scientific publication. Whenever possible very briefly describe each sections of the figure 
+   and then give an overall conclusion about what the figure tells us"
+  layout_model: #this is specific to literature, other models will not be using it also uses a specific model
     config: benchmate/models/lp_model/config.yaml
     model: benchmate/models/lp_model/pytorch_model.bin
     kwargs: {}
@@ -32,13 +46,13 @@ inference:
   text_rerank:
     cache_dir: benchmate/models/hf_models
     model: Qwen/Qwen3-Rerank-0.6B
-    prefix: "<|im_start|>system\n"
-            "Judge whether the Document meets the requirements based on the Query and the Instruct provided. "
-            "Note that the answer can only be \"yes\" or \"no\".<|im_end|>\n"
-            "<|im_start|>user\n"
-    suffix: "<|im_end|>\n"
-            "<|im_start|>assistant\n"
-            "<think>\n\n</think>\n\n"
+    prefix: "<|im_start|>system\n
+            Judge whether the Document meets the requirements based on the Query and the Instruct provided. 
+            Note that the answer can only be \"yes\" or \"no\".<|im_end|>\n
+            <|im_start|>user\n"
+    suffix: "<|im_end|>\n
+            <|im_start|>assistant\n
+            <think>\n\n</think>\n\n"
 
   image_embed:
     cache_dir: benchmate/models/hf_models
@@ -85,7 +99,10 @@ api:
 structure:
   pdb_path: benchmate/data/pdb #this is where all the pdb files are stored, you can usually override it in functions if you want to but this will be the default
 
-molecule: #nothing here yet
+molecule:
+  fingerprint_dim: 2048
+  fingerprint_radius: 2
+
 sequence: #nothing here yet
 genome: #nothing here yet, pysam comes with samtools
 

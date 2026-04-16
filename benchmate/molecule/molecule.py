@@ -106,17 +106,6 @@ class Molecule:
         results = data.search(smiles=self.info.smiles, n=n)
         return results
 
-    # TODO
-    def search_kb(self, metric="tanimoto", using="ecfp4"):
-        """
-        very similar to above but this will search the database, this is for small searches, if you have billions of molecules
-        you are better off creating a library and using that.
-        :param metric:
-        :param using:
-        :return:
-        """
-        pass
-
     def similarity(self, other, fingerprint):
         if not isinstance(other, Molecule):
             raise ValueError("other must be an instance of Molecule")

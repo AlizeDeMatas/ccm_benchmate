@@ -1,4 +1,10 @@
-Here is the complete documentation for your Python module, structured for a README or a technical guide.
+---
+layout: default
+title: EBI Tools and DBFetch
+parent: APIs
+grand_parent: Modules
+nav_order: 10
+---
 
 # EBI Python Client Documentation
 

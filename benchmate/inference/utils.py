@@ -3,7 +3,7 @@ from functools import cached_property
 
 import torch
 
-#these are my recomendations, you can pass your own
+#these are my recomendations, you can pass your own see main config.yaml
 from transformers import (AutoTokenizer, AutoModelForCausalLM, AutoProcessor,
                           CLIPModel, CLIPProcessor, ColPaliProcessor,
                           ColPaliForRetrieval, Qwen2_5_VLForConditionalGeneration)
