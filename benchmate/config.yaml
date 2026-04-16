@@ -1,0 +1,101 @@
+
+
+name: benchmate
+literature:
+  table_prompt: You are an expert biologist who is responsible for reading and interpreting scientific tables. For a given table from a scientific paper interpret the table. Do not provide comments on whether the table is well done or not. Do not provide extra text on describing that you are looking at table from a scientific publication. Give an overall conclusion about what the tables tells us.
+  figure_prompt: You are an expert biologist who is responsible for reading and interpreting scientific figures. For a given figure from a scientific paper interpret the figure. Do not provide comments on whether the figure is well done or not. Do not provide extra text on describing that you are looking at figure from a scientific publication. Whenever possible very briefly describe each sections of the figure and then give an overall conclusion about what the figure tells us
+  layout_model: #this is specific to literature, other models will not be using it
+    config: benchmate/models/lp_model/config.yaml
+    model: benchmate/models/lp_model/pytorch_model.bin
+    kwargs: {}
+  pdf_path: benchmate/data/pdfs
+
+# all these models will be shared with other data modalities
+inference:
+  interpret_image: #this is the model that is used to interpret figures
+    cache_dir: benchmate/models/hf_models
+    model_name: Qwen/Qwen2.5-VL-3B-Instruct
+    model_kwargs:
+      max_new_tokens: 100
+    processor_kwargs: {}
+    model_class: transformers.QwenForConditionalGeneration
+    processor_class: transformers.AutoProcessor
+    generation_kwargs: {} # other generation kwargs that you want to pass in, this is passed to model.generate
+    quantization_kwargs: {} # if you want to use bitsandbytes quantization you can pass it here
+
+  text_embedding: #this is the model that is used to embed the text
+    cache_dir: benchmate/models/hf_models
+    model: Qwen/Qwen3-Embedding-0.6B
+    dimensions: 1024
+    kwargs: {}
+
+  text_rerank:
+    cache_dir: benchmate/models/hf_models
+    model: Qwen/Qwen3-Rerank-0.6B
+    prefix: "<|im_start|>system\n"
+            "Judge whether the Document meets the requirements based on the Query and the Instruct provided. "
+            "Note that the answer can only be \"yes\" or \"no\".<|im_end|>\n"
+            "<|im_start|>user\n"
+    suffix: "<|im_end|>\n"
+            "<|im_start|>assistant\n"
+            "<think>\n\n</think>\n\n"
+
+  image_embed:
+    cache_dir: benchmate/models/hf_models
+    model: microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224
+    processor_class: transformers.CLIPProcessor
+    model_class: transformers.CLIPModel
+    dimensions: 512
+    kwargs: {}
+
+  image_rerank:
+    cache_dir: benchmate/models/hf_models
+    model: vidore/colpali-v1.3
+    model_class: transformers.ColPaliForRetrieval
+    processor_class: transformers.ColPaliProcessor
+
+  semantic_chunk:
+    model: benchmate/models/m2v_model
+    chunking_kwargs:
+      min_chunk_size: 100
+      min_sentences: 1
+      return_type: texts
+      threshold: 0.75
+
+#these are binary locations if needed, you can leave just as the callable if they are in your $PATH
+#if you leave them blank they you will get a warning and they will not be available
+alignment:
+  foldseek_bin: foldseek
+  foldseek_db_root: benchmate/data/foldseek_db #this is where all the databases will be created/downloaded etc.
+  mmseqs2_bin: mmseqs
+  mmseqs_db_root: benchmate/data/mmseqs_db #same as above
+  blast_bin:
+    blastn: blastn
+    blastp: blastp
+    tblastn: tblastn
+    tblastx: tblastx
+    blastx: blastx
+  blast_db_root: benchmate/data/blast_db #same as above
+
+api:
+  email: mail@mail.com
+  biogrid_api_key:
+  alphagenome_api_key:
+
+structure:
+  pdb_path: benchmate/data/pdb #this is where all the pdb files are stored, you can usually override it in functions if you want to but this will be the default
+
+molecule: #nothing here yet
+sequence: #nothing here yet
+genome: #nothing here yet, pysam comes with samtools
+
+
+
+
+
+
+
+
+
+
+
