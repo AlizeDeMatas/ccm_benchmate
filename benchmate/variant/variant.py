@@ -7,9 +7,7 @@ from docker.errors import NotFound
 from sqlalchemy import select, insert, update
 from sqlalchemy.sql import annotation
 
-from benchmate.project import project
-from benchmate.project.project import Project
-from benchmate.project.utils import DataIntegrityError
+from benchmate.utils.general_utils import DataIntegrityError
 from benchmate.ranges.genomicranges import GenomicRange
 
 # this will pull dataclasses based on the queries, it will use from_kb methods for each of the variant types
@@ -18,7 +16,7 @@ from benchmate.ranges.genomicranges import GenomicRange
 #TODO I should be able to provide a list instead of invididual items. Currently you can just run them in a loop but that
 # is not ideal
 class VariantSearch:
-    def __init__(self, project: Project):
+    def __init__(self, project):
         self.project = project
 
     def search(self, chrom:str=None, pos:(int, Tuple[int, int])=None, gr:GenomicRange=None,
@@ -35,16 +33,16 @@ class VariantSearch:
         :return: a dict, with each varianttype is a dict key and each item contains a list of variant class instances
         """
         if type=="sequencevariant":
-            tables=[project.kb.db_tables["sequencevariant"]]
+            tables=[self.project.kb.db_tables["sequencevariant"]]
         elif type=="structuralvariant":
-            tables=[project.kb.db_tables["structuralvariant"]]
+            tables=[self.project.kb.db_tables["structuralvariant"]]
         elif type=="tandemrepatvariant":
-            tables=[project.kb.db_tables["tandemrepatvariant"]]
+            tables=[self.project.kb.db_tables["tandemrepatvariant"]]
         elif type is None:
             tables=[
-                project.kb.db_tables["sequencevariant"],
-                project.kb.db_tables["structuralvariant"],
-                project.kb.db_tables["tandemrepatvariant"]
+                self.project.kb.db_tables["sequencevariant"],
+                self.project.kb.db_tables["structuralvariant"],
+                self.project.kb.db_tables["tandemrepatvariant"]
             ]
         else:
             raise ValueError(f"Variant type {type} is not supported")
@@ -161,7 +159,7 @@ class SequenceVariant(BaseVariant):
 
     #THERE IS NOT CHECK TO SEE IF THE SAME VARIANT EXISTS BEFOREHAND, THE IF THERE ARE REGULAR IDS
     # THAT WOULD GIVE A UNIQUE VIOLATION ERROR BUT IF YOU ARE USING UUID4 THERE IS NO CHECK
-    def to_kb(self, project: Project):
+    def to_kb(self, project):
         table=project.kb.db_tables["sequencevariant"]
         stmt=insert(table).values(id=self.id, chrom=self.chrom, pos=self.pos,
                                   ref=self.ref, alt=self.alt, length=self.length,
@@ -170,7 +168,7 @@ class SequenceVariant(BaseVariant):
         project.kb.session.commit()
 
     @classmethod
-    def from_kb(cls, project: Project, id):
+    def from_kb(cls, project, id):
         table = project.kb.db_tables["sequencevariant"]
         stmt=select(table).where(table.c.id==id).fetchall()
         results=project.kb.session.execute(stmt)
@@ -221,7 +219,7 @@ class StructuralVariant(BaseVariant):
                 f"mateid={self.mateid}, cn={self.cn}, cistart={self.cistart}, ciend={self.ciend}, "
                 f"mei_type={self.mei_type}, sr={self.sr}, pr={self.pr}, ps={self.ps}, id={self.id})")
 
-    def to_kb(self, project: Project):
+    def to_kb(self, project):
         table = project.kb.db_tables["structuralvariant"]
         stmt = insert(table).values(id=self.id, chrom=self.chrom, pos=self.pos,
                                     svlen=self.svlen, cn=self.cn, cistart=self.cistart,
@@ -230,7 +228,7 @@ class StructuralVariant(BaseVariant):
         project.kb.session.commit()
 
     @classmethod
-    def from_kb(cls, project: Project):
+    def from_kb(cls, project):
         table = project.kb.db_tables["structuralvariant"]
         stmt = select(table).where(table.c.id == id).fetchall()
         results = project.kb.session.execute(stmt)
@@ -279,7 +277,7 @@ class TandemRepeatVariant(BaseVariant):
                 f"filter={self.filter}, ms={self.ms}, mc={self.mc}, ap={self.ap}, am={self.am}, "
                 f"sd={self.sd}, id={self.id})")
 
-    def to_kb(self, project: Project):
+    def to_kb(self, project):
         table = project.kb.db_tables["tandemrepeatvariant"]
         stmt = insert(table).values(id=self.id, chrom=self.chrom, pos=self.pos,
                                     al=self.al, annotations=self.annotations)
@@ -287,7 +285,7 @@ class TandemRepeatVariant(BaseVariant):
         project.kb.session.commit()
 
     @classmethod
-    def from_kb(cls, project: Project):
+    def from_kb(cls, project):
         table = project.kb.db_tables["tandemrepeatvariant"]
         stmt = select(table).where(table.c.id == id).fetchall()
         results = project.kb.session.execute(stmt)

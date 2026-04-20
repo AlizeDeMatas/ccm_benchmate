@@ -6,7 +6,7 @@ from sqlalchemy.orm import declarative_base
 
 from sqlalchemy import (
     Column, ForeignKey, Integer, String, DateTime,
-    Text, Float, types, Computed, Index, LargeBinary,
+    Text, Float, types, Computed, Index,
     JSON, LargeBinary, UniqueConstraint
 )
 from sqlalchemy.dialects.postgresql import TSVECTOR, JSONB, ARRAY
@@ -48,17 +48,6 @@ class ApiCall(Base):
     __table_args__ = (
         Index('ix_api_call_full_text_tsv', full_text_tsv, postgresql_using='gin'),
     )
-
-
-# we are already using tsvector for the whole thing there is no need
-# to do it again
-class ApiCallChunk(Base):
-    __tablename__ = 'api_call_chunks'
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    api_call_id = Column(Integer, ForeignKey('api_call.id'), nullable=False)
-    chunk_id = Column(Integer, nullable=False)
-    chunk_text = Column(Text, nullable=False)
-    chunk_embedding = Column(Vector(1024))
 
 # Literature tables
 
