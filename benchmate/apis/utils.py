@@ -10,14 +10,10 @@ from model2vec import StaticModel
 from sqlalchemy import insert, select
 from sqlalchemy.exc import NoResultFound
 
-from benchmate.config import *
-from benchmate.project.project import Project
-from benchmate.project.utils import DataIntegrityError
+from benchmate.utils.general_utils import DataIntegrityError
 
 #I'm keeping this here, instead of using the whole inference thing. I might need to re-write inference
 # to be more generic and import method from utils depending on the kind of thing we are doing.
-
-embedding_model=StaticModel.from_pretrained(api_call["text_embedding_model"]["model"])
 
 
 api_mapper={
@@ -100,25 +96,6 @@ class ApiCall:
         return self.__str__()
 
     @cached_property
-    def chunks(self, path="root", max_chunk_chars: int = 1000):
-        """
-        chunks an api response, this will be used for semantic searching the chunks
-        :param max_chunk_chars: for larger ones with text
-        :return: list of chunks with path of the dict starting with root
-        """
-        chunks=self._serialize(self.results, path=path, max_chunk_chars=max_chunk_chars)
-        chunks_with_ids=[]
-        for i in range(len(chunks)):
-            chunks_with_ids.append([i, chunks[i]])
-        return chunks_with_ids
-
-    @cached_property
-    def embeddings(self, model=embedding_model):
-        texts=[chunk[1]["value"] for chunk in self.chunks]
-        embeddings=model.encode(texts).tolist()
-        return embeddings
-
-    @cached_property
     def flat(self):
         """
         Flatten JSON response into a single summary string. This will be used for tsvector in full text search
@@ -172,23 +149,11 @@ class ApiCall:
         new_id = result.scalar_one()
         project.kb.session().commit()
         # add chunks
-        chunks_table=project.kb.db_tables["api_call_chunks"]
-        chunks=self.chunks
-        embeddings=self.embeddings
-        for chunk_num, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
-            stmt=insert(chunks_table).values(
-                id=new_id,
-                chnuk_id=chunk.chuk_id,
-                chunk_text=chunk,
-                chunk_embedding=embedding,
-        )
-            project.kb.session().execute(stmt)
-            project.kb.session().commit()
+        return new_id
 
     @classmethod
     def from_kb(cls, project, id):
         api_table = project.kb.db_tables["api_call"]
-        api_chunks_table=project.kb.db_tables["api_call_chunks"]
 
         main_stmt=select(api_table.c.class_name,
                           api_table.c.method_name,
@@ -217,36 +182,7 @@ class ApiCall:
             query_time=results[0][4]
         )
         call.flat=results[0][5]
-
-        #get embeddings and chunks
-        chunks_stmt=select(api_chunks_table.c.chunk_text,
-                           api_chunks_table.c.chunk_embedding).where(api_chunks_table.c.api_call_id == id)
-
-        results=project.kb.session().execute(chunks_stmt).fetchall()
-        if len(results)==0:
-            warnings.warn("Could not find an api chunk with id {}, but you can still call the "
-                          "class methods to generate these".format(id))
-        else:
-            call.chunks=[item[0] for item in results]
-            call.embeddings=[item[1] for item in results]
-
         return call
-
-class ApiCallSearch:
-    def __init__(self, project:Project):
-        self.project=project
-
-    def search(self, query_dict):
-        pass
-
-    def _semantic_search(self, source, query):
-        pass
-
-    def _fulltext_search(self, source, query):
-        pass
-    
-    def _jsonb_search(self, source, query):
-        pass
 
 
 

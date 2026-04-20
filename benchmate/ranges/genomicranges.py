@@ -154,7 +154,7 @@ class CompoundGenomicRange:
 
         return olaps
 
-    def distance(self, other, ignore_strand=False):
+    def distance(self, other):
         """
         find the distance between this CompoundGenomicRange and another or another GenomicRange or CompoundGenomicRange..
         :param other: GenomicRange or CompoundGenomicRange to compare with
@@ -232,7 +232,6 @@ class GenomicRangesList:
         """Extend the list with another GenomicRangesList."""
         assert (isinstance(other, GenomicRangesList))
         self.items.extend(other.items)
-
 
     def find_overlaps(self, other=None, type="exact", ignore_strand=False, return_ranges=True):
         """

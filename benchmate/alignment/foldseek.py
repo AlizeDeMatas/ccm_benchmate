@@ -30,6 +30,7 @@ class FoldSeek:
         self,
         pdb_dir: str,
         db_path: str,
+        db_name: str,
         gpu_padded: bool = False,
         extra_args: Optional[Union[List[str], Dict[str, str]]] = None,
         tmp_dir: Optional[str] = None
@@ -47,6 +48,7 @@ class FoldSeek:
         Returns:
             Path to created database
         """
+        db_path = os.path.join(db_path, db_name)
         if not os.path.isdir(pdb_dir):
             raise NotADirectoryError(f"Input directory not found: {pdb_dir}")
 

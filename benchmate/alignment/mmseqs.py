@@ -26,10 +26,12 @@ class MMSeqs:
         self,
         fasta_path: str,
         db_path: str,
+        db_name: str,
         gpu_padded: bool = False,
         extra_args: Optional[Union[List[str], Dict[str, str]]] = None,
     ) -> str:
         """Create target database (optionally padded for GPU)."""
+        db_path = os.path.join(db_path, db_name)
         if os.path.exists(db_path):
             raise FileExistsError(f"Database exists: {db_path}")
 

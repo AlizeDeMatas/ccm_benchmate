@@ -16,7 +16,7 @@ from biotite.structure.io.pdbx import CIFFile, get_structure
 from benchmate.utils.general_utils import compressed_stream_manager, decompressed_stream_manager
 from benchmate.structure.utils import *
 from benchmate.sequence.sequence import Sequence, SequenceList
-from benchmate.project.utils import DataIntegrityError
+from benchmate.utils.general_utils import DataIntegrityError
 
 
 

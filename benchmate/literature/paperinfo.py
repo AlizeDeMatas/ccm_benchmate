@@ -8,8 +8,7 @@ from sqlalchemy import select, insert
 from PIL import Image
 from sqlalchemy.exc import NoResultFound
 
-from benchmate.project.utils import DataIntegrityError
-from benchmate.literature.literature import Paper
+from benchmate.utils.general_utils import DataIntegrityError
 
 @dataclass
 class PaperInfo:
@@ -187,19 +186,19 @@ class PaperInfo:
         elif len(paper_info) == 0:
             raise NoResultFound("Could not find a paper with id:{}".format(id))
         else:
-            paper = Paper(paper_id=paper_info[0][0], id_type=paper_info[0][1], get_abstract=False)
-            paper.info.title = paper_info[0][2]
-            paper.info.abstract = paper_info[0][3]
-            paper.info.abstract_embeddings = paper_info[0][4]
-            paper.info.text = paper_info[0][5]
-            paper.info.download_link = paper_info[0][6]
-            paper.info.file_path = paper_info[0][7]
-            if paper.info.file_path is not None:
-                paper.info.downloaded = True
+            paper = cls(paper_id=paper_info[0][0], id_type=paper_info[0][1], get_abstract=False)
+            paper.title = paper_info[0][2]
+            paper.abstract = paper_info[0][3]
+            paper.abstract_embeddings = paper_info[0][4]
+            paper.text = paper_info[0][5]
+            paper.download_link = paper_info[0][6]
+            paper.file_path = paper_info[0][7]
+            if paper.file_path is not None:
+                paper.downloaded = True
             else:
-                paper.info.downloaded = False
-            paper.info.openalex_response = paper_info[0][8]
-            paper.info.authors = paper_info[0][9]
+                paper.downloaded = False
+            paper.openalex_response = paper_info[0][8]
+            paper.authors = paper_info[0][9]
 
         figures = select(figures_table.c.image_blob,
                          figures_table.c.figure_embeddings,
@@ -207,12 +206,12 @@ class PaperInfo:
                          figures_table.c.figure_interpretation_embeddings).where(figures_table.c.paper_id == id)
         figures = project.kb.session().execute(figures).fetchall()
         if len(figures) == 0:
-            paper.info.figures = None
+            paper.figures = None
         else:
-            paper.info.figures = [Image.open(io.BytesIO(figure[0])) for figure in figures]
-            paper.info.figure_embeddings = [figure[1] for figure in figures]
-            paper.info.figure_interpretation = [figure[2] for figure in figures]
-            paper.info.figure_interpretation_embeddings = [figure[3] for figure in figures]
+            paper.figures = [Image.open(io.BytesIO(figure[0])) for figure in figures]
+            paper.figure_embeddings = [figure[1] for figure in figures]
+            paper.figure_interpretation = [figure[2] for figure in figures]
+            paper.figure_interpretation_embeddings = [figure[3] for figure in figures]
 
         tables = select(tables_table.c.image_blob,
                         tables_table.c.table_embeddings,
@@ -220,53 +219,53 @@ class PaperInfo:
                         tables_table.c.table_interpretation_embeddings).where(tables_table.c.paper_id == id)
         tables = project.kb.session().execute(tables).fetchall()
         if len(tables) == 0:
-            paper.info.tables = None
+            paper.tables = None
         else:
-            paper.info.tables = [Image.open(io.BytesIO(table[0])) for table in tables]
-            paper.info.table_embeddings = [table[1] for table in tables]
-            paper.info.table_interpretation = [table[2] for table in tables]
-            paper.info.table_interpretation_embeddings = [table[3] for table in tables]
+            paper.tables = [Image.open(io.BytesIO(table[0])) for table in tables]
+            paper.table_embeddings = [table[1] for table in tables]
+            paper.table_interpretation = [table[2] for table in tables]
+            paper.table_interpretation_embeddings = [table[3] for table in tables]
 
         chunks = select(chunked_text_table.c.chunk,
                         chunked_text_table.c.chunk_embeddings).where(chunked_text_table.c.paper_id == id)
         chunks = project.kb.session().execute(chunks).fetchall()
         if len(chunks) == 0:
-            paper.info.text_chunks = None
+            paper.text_chunks = None
         else:
-            paper.info.text_chunks = [chunk[0] for chunk in chunks]
-            paper.info.chunk_embeddings = [chunk[1] for chunk in chunks]
+            paper.text_chunks = [chunk[0] for chunk in chunks]
+            paper.chunk_embeddings = [chunk[1] for chunk in chunks]
 
         references = select(references_table.c.target_id).where(references_table.c.paper_id == id)
         references = project.kb.session().execute(references).fetchall()
         if len(references) == 0:
-            paper.info.references = None
+            paper.references = None
         else:
             refs = []
             for ref in references:
                 ref_paper = cls.from_kb(project, ref[1])
                 refs.append(ref_paper)
-            paper.info.references = refs
+            paper.references = refs
 
         cited_by = select(cited_by_table.c.target_id).where(cited_by_table.c.paper_id == id)
         cited_by = project.kb.session().execute(cited_by).fetchall()
         if len(cited_by) == 0:
-            paper.info.cited_by = None
+            paper.cited_by = None
         else:
             refs = []
             for ref in cited_by:
                 ref_paper = cls.from_kb(project, ref[1])
                 refs.append(ref_paper)
-            paper.info.cited_by = refs
+            paper.cited_by = refs
 
         related_works = select(related_works_table.c.target_id).where(related_works_table.c.paper_id == id)
         related_works = project.kb.session().execute(related_works).fetchall()
         if len(related_works) == 0:
-            paper.info.related_works = None
+            paper.related_works = None
         else:
             refs = []
             for ref in related_works:
                 ref_paper = cls.from_kb(project, ref[1])
                 refs.append(ref_paper)
-            paper.info.related_works = refs
+            paper.related_works = refs
 
         return paper

@@ -4,7 +4,13 @@ from typing import Any, Callable, BinaryIO
 import gzip
 import io
 
-import requests
+
+class DataIntegrityError(Exception):
+    pass
+
+class ProjectNameError(Exception):
+    pass
+
 
 def warn_for_status(response, message):
     """

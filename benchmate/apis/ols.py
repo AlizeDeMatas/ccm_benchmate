@@ -34,7 +34,7 @@ class OLS:
         self.base_url= "https://www.ebi.ac.uk/ols4/api"
 
     @cached_property
-    def ontologies(self) -> Dict[Any]:
+    def ontologies(self):
         """
         get a list of all ontologies in OLS, this may take a few seconds to run the first time around but after that it will be cached
         """
@@ -74,7 +74,7 @@ class OLS:
 
     @api_call
     def get_term(self, ontology_id: str, term_id: str, iri: Optional[str] = None, get_children: bool = False,
-                    get_parents: bool = False, get_ancestors=False, get_descendants=False, get_graph=False) -> Ontology:
+                    get_parents: bool = False, get_ancestors=False, get_descendants=False, get_graph=False):
         """
         get details about a specific term in an ontology, you will need to know the ontology id and either the term id or the iri
         :param ontology_id: name of the ontology to search
