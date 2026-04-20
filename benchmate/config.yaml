@@ -8,7 +8,7 @@ project:
   project descriptions."
 
 knowledge_base:
-  env_file: benchmate/kb/env.yaml #this is the file that contains all the environment variables that you want to use in the knowledge base mainly to connect to databases
+  conn_string: #this is the connection string to the database, it must be a postgres database connection
 
 literature:
   table_prompt: "You are an expert biologist who is responsible for reading and interpreting scientific tables. For a given table from a scientific paper interpret the table. 
