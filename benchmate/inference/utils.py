@@ -1,11 +1,11 @@
 import gc
 from functools import cached_property
 
+import json
 import torch
 
-#these are my recomendations, you can pass your own see main config.yaml
-from transformers import (AutoTokenizer, AutoModelForCausalLM, AutoProcessor,
-                          CLIPModel, CLIPProcessor, ColPaliProcessor,
+from transformers import (AutoTokenizer, AutoModelForCausalLM, AutoProcessor, AutoModelForImageTextToText,
+                          CLIPModel, CLIPProcessor, ColPaliProcessor,BitsAndBytesConfig,
                           ColPaliForRetrieval, Qwen2_5_VLForConditionalGeneration)
 
 from chonkie import SemanticChunker, Model2VecEmbeddings
@@ -13,7 +13,8 @@ from sentence_transformers import SentenceTransformer
 from qwen_vl_utils import process_vision_info
 
 
-#TODO this is vram cleanup
+#TODO neeed to do quantization kwargs in all of these
+
 class CleanupMixin:
     def cleanup_cuda(self):
         """Fully clears GPU memory."""
@@ -217,7 +218,8 @@ class SemanticChunk(CleanupMixin):
 
 class InterpretImage(CleanupMixin):
     def __init__(self, cache_dir, model_name, model_kwargs, processor_kwargs,
-                 model_class=Qwen2_5_VLForConditionalGeneration, processor_class=AutoProcessor, device="cuda"):
+                 model_class=Qwen2_5_VLForConditionalGeneration,
+                 processor_class=AutoProcessor, device="cuda"):
         self.cache_dir = cache_dir
         self.model_name = model_name
         self.model_class=  model_class
@@ -267,4 +269,149 @@ class InterpretImage(CleanupMixin):
 
         self.cleanup_model(self.model)
         return outputs
+
+class ExtractInfo(CleanupMixin):
+    def __init__(
+        self,
+        cache_dir,
+        model_name,
+        model_kwargs=None,
+        processor_kwargs=None,
+        quantization_kwargs=None,
+        generation_kwargs=None,
+        model_class=AutoModelForImageTextToText,
+        processor_class=AutoProcessor,
+        device="cuda",
+    ):
+        self.cache_dir = cache_dir
+        self.model_name = model_name
+        self.model_class = model_class
+        self.processor_class = processor_class
+        self.device = device
+
+        # defensive copies (avoid external mutation bugs)
+        self.model_kwargs = dict(model_kwargs or {})
+        self.processor_kwargs = dict(processor_kwargs or {})
+        self.generation_kwargs = dict(generation_kwargs or {})
+        self.quantization_kwargs = dict(quantization_kwargs or {})
+
+    @cached_property
+    def model(self):
+        if self.quantization_kwargs:
+            quantization_config = BitsAndBytesConfig(**self.quantization_kwargs)
+            # set attribute correctly (not dict-style)
+            quantization_config.bnb_4bit_compute_dtype = torch.bfloat16
+        else:
+            quantization_config = None
+
+        model = self.model_class.from_pretrained(
+            self.model_name,
+            cache_dir=self.cache_dir,
+            quantization_config=quantization_config,
+            **self.model_kwargs,
+        )
+
+        # only move manually if NOT quantized
+        if quantization_config is None:
+            model = model.to(self.device)
+
+        return model
+
+    @cached_property
+    def processor(self):
+        return self.processor_class.from_pretrained(
+            self.model_name,
+            cache_dir=self.cache_dir,
+            **self.processor_kwargs,
+        )
+
+    def generate_extraction_prompt(self, items_to_extract: dict):
+        description_text = []
+        format_text = []
+
+        for item, description in items_to_extract.items():
+            description_text.append(f"- {item}: {description}\n")
+            format_text.append(
+                f'{item}: [comma(,) separated list of each member of {item}],\n'
+            )
+
+        prompt = f"""
+For each of the texts that are provided extract the following information:
+
+{''.join(description_text)}
+
+For each of the items mentioned above your response should come in the following schema:
+{{
+{''.join(format_text)}
+}}
+
+Rules:
+- Do not invent or modify what you are looking for
+- Not every possible item will be in each text
+- There might be more than one item in each text include all of them
+- Always return json, no markdown, no comments, no additional formatting
+- If there is no information relating to a specific field return empty list and nothing else
+
+Text:
+"""
+        return prompt
+
+    @torch.inference_mode()
+    def extract_info(self, sys_prompt, items_to_extract: dict, texts: list):
+        prompt = self.generate_extraction_prompt(items_to_extract)
+        results = []
+
+        for text in texts:
+            if text is None:
+                results.append(None)
+                continue
+
+            messages = [
+                {
+                    "role": "system",
+                    "content": [{"type": "text", "text": sys_prompt}],
+                },
+                {
+                    "role": "user",
+                    "content": [{"type": "text", "text": prompt + "\n" + text}],
+                },
+            ]
+
+            inputs = self.processor.apply_chat_template(
+                messages,
+                add_generation_prompt=True,
+                tokenize=True,
+                padding=True,
+                pad_to_multiple_of=8,
+                return_dict=True,
+                return_tensors="pt",
+            )
+
+            # move to device ONLY (no forced dtype)
+            inputs = inputs.to(self.device)
+
+            input_len = inputs["input_ids"].shape[-1]
+
+            generation = self.model.generate(
+                **inputs,
+                **self.generation_kwargs,  # no override
+            )
+
+            generation = generation[0][input_len:]
+            decoded = self.processor.decode(generation, skip_special_tokens=True)
+
+            # optional: try parsing JSON (non-breaking)
+            try:
+                parsed = json.loads(decoded)
+            except Exception:
+                parsed = decoded  # fallback to raw string
+
+            results.append(parsed)
+            self.cleanup_cuda()
+
+        self.cleanup_model()
+        return results
+
+
+
 
