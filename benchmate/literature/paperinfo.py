@@ -10,38 +10,50 @@ from sqlalchemy.exc import NoResultFound
 
 from benchmate.utils.general_utils import DataIntegrityError
 
-@dataclass
+@dataclass(slots=True)
 class PaperInfo:
     """
     Dataclass to hold information about a paper, this is constructed inside the Paper class and desined to be compatible with
     semantic search and embedding distance searches
     """
+    # in papers table
     id: str
-    id_type: str
+    external_ids: Optional[dict] = None
     title: Optional[str] = None
-    authors: Optional[list] = None
     abstract: Optional[str] = None
     abstract_embeddings: Optional[np.ndarray] = None
+    download_links: Optional[list] = None
+    file_paths: Optional[list] = None
+    full_json: Optional[dict] = None
+    authors: Optional[list] = None
     text: Optional[str] = None
+
+    #body_text_chunk table
     text_chunks: Optional[list] = None
     chunk_embeddings: Optional[np.ndarray] = None
+
+    #in figures table
     figures: Optional[list] = None
     figure_embeddings: Optional[np.ndarray] = None
-    tables: Optional[list] = None
-    table_embeddings: Optional[np.ndarray] = None
     figure_interpretation: Optional[list] = None
     figure_interpretation_embeddings: Optional[np.ndarray] = None
+
+    #in tables table
+    tables: Optional[list] = None
+    table_embeddings: Optional[np.ndarray] = None
     table_interpretation: Optional[list] = None
     table_interpretation_embeddings: Optional[np.ndarray] = None
-    download_link: str = None
-    downloaded: bool = False
-    file_path: str = None
-    openalex_info: Optional[dict] = None
-    references: Optional[list] = None
-    related_works: Optional[list] = None
-    cited_by: Optional[list] = None
-    pmc_id: Optional[str] = None
 
+    #references table
+    references: Optional[list] = None
+
+    #related works table
+    related_works: Optional[list] = None
+
+    #cited by table
+    cited_by: Optional[list] = None
+
+    #TODO fix
     def to_kb(self, project):
         papers_table = project.kb.db_tables["papers"]
         figures_table = project.kb.db_tables["figures"]
@@ -52,19 +64,20 @@ class PaperInfo:
         related_works_table = project.kb.db_tables["related_works"]
         cited_by_table = project.kb.db_tables["cited_by"]
 
+        #TODO this is the part that needs fixing
         stms = insert(papers_table.c.source_id, papers_table.c.source, papers_table.c.title,
                       papers_table.c.project_id,
                       papers_table.c.abstract, papers_table.c.abstract_embeddings,
                       papers_table.c.pdf_url, papers_table.c.pdf_path,
-                      papers_table.c.openalex_response,
-                      papers_table.c.authors).values(self.id, self.id_type,
+                      papers_table.c.full_json,
+                      papers_table.c.authors).values(self.id, self.external_ids,
                                                          self.title,
                                                          project.project_id,
                                                          self.abstract,
                                                          self.abstract_embeddings,
-                                                         self.download_link,
+                                                         self.download_links,
                                                          self.file_path,
-                                                         self.openalex_info,
+                                                         self.full_json,
                                                          self.authors).returning(papers_table.c.paper_id)
         
         paper_id = project.kb.session().execute(stms).scalars().one()
@@ -156,7 +169,7 @@ class PaperInfo:
         project.kb.session().commit()
         return paper_id
 
-
+    #TODO fix
     @classmethod
     def from_kb(cls, project, id):
         papers_table = project.kb.db_tables["papers"]
@@ -167,6 +180,7 @@ class PaperInfo:
         related_works_table = project.kb.db_tables["related_works"]
         cited_by_table = project.kb.db_tables["cited_by"]
 
+        #this is the part that needs fixing
         selection = select(
             papers_table.c.source_id,
             papers_table.c.source,
@@ -176,7 +190,7 @@ class PaperInfo:
             papers_table.c.text,
             papers_table.c.pdf_url,
             papers_table.c.pdf_path,
-            papers_table.c.openalex_response,
+            papers_table.c.full_json,
             papers_table.c.authors,
         ).where(papers_table.c.paper_id == id)
         paper_info = project.kb.session().execute(selection).fetchall()
@@ -197,7 +211,7 @@ class PaperInfo:
                 paper.downloaded = True
             else:
                 paper.downloaded = False
-            paper.openalex_response = paper_info[0][8]
+            paper.full_json = paper_info[0][8]
             paper.authors = paper_info[0][9]
 
         figures = select(figures_table.c.image_blob,
