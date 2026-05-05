@@ -1,7 +1,9 @@
 import importlib
 
 import torch
-from benchmate.inference.utils import (TextRerank, TextEmbed, ImageRerank, ImageEmbed, SemanticChunk, InterpretImage)
+from benchmate.inference.utils import (TextRerank, TextEmbed, ImageRerank,
+                                       ImageEmbed, SemanticChunk, InterpretImage,
+                                       ExtractInfo)
 
 class Inference:
     def __init__(self, config):
@@ -44,6 +46,12 @@ class Inference:
                                               importlib.import_module(self.config["interpret_image"]["model_class"]),
                                               importlib.import_module(self.config["interpret_image"]["processor_class"]),
                                               device=self.device )
+
+        #TODO
+        self.extract_info = ExtractInfo(self.config["extract_info"]["cache_dir"],
+                                        self.config["extract_info"]["model_name"],
+                                        self.config["extract_info"]["model_kwargs"],
+                                        self.config["extract_info"]["processor_kwargs"],)
 
     #TODO need to check if this is immediately compatible with the db
     def embed_text(self, texts):

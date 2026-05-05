@@ -1,6 +1,6 @@
 import gc
 from functools import cached_property
-
+from collections.abc import Iterable
 import json
 import torch
 
@@ -212,8 +212,16 @@ class SemanticChunk(CleanupMixin):
             min_sentences=self.min_sentences,  # Initial sentences per chunk,
             return_type="texts"  # return a list of strings
         )
-        chunks = chunker.chunk(texts) #this is a list of list of strings
-        return chunks
+        if not isinstance(texts, Iterable):
+            texts=[texts]
+
+        chunked_texts = []
+        for text in texts:
+            chunked=chunker.chunk(text)
+            for index, chunk in enumerate(chunked):
+                chunked_texts.append((index, chunk))
+
+        return chunked_texts
 
 
 class InterpretImage(CleanupMixin):
