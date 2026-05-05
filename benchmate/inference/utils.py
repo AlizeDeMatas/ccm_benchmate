@@ -212,7 +212,7 @@ class SemanticChunk(CleanupMixin):
             min_sentences=self.min_sentences,  # Initial sentences per chunk,
             return_type="texts"  # return a list of strings
         )
-        if not isinstance(texts, Iterable):
+        if not isinstance(texts, list):
             texts=[texts]
 
         chunked_texts = []

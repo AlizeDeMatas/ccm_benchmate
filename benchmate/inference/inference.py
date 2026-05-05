@@ -5,6 +5,10 @@ from benchmate.inference.utils import (TextRerank, TextEmbed, ImageRerank,
                                        ImageEmbed, SemanticChunk, InterpretImage,
                                        ExtractInfo)
 
+def dynamic_import(module_name: str, class_name: str):
+    module = importlib.import_module(module_name)
+    return getattr(module, class_name)
+
 class Inference:
     def __init__(self, config):
         self.config = config
@@ -24,16 +28,16 @@ class Inference:
                                       self.config["image_embed"]["model_name"],
                                       self.config["image_embed"]["model_kwargs"],
                                       self.config["image_embed"]["processor_kwargs"],
-                                      importlib.import_module(self.config["image_embed"]["model_class"]),
-                                      importlib.import_module(self.config["image_embed"]["processor_class"]),
-                                      device=self.device,)
+                                      dynamic_import("transformers", self.config["image_embed"]["model_class"]),
+                                      dynamic_import("transformers", self.config["image_embed"]["processor_class"]),
+                                      device=self.device)
 
         self.image_rerank = ImageRerank(self.config["image_rerank"]["cache_dir"],
                                         self.config["image_rerank"]["model_name"],
                                         self.config["image_rerank"]["model_kwargs"],
                                         self.config["image_rerank"]["processor_kwargs"],
-                                        importlib.import_module(self.config["image_rerank"]["model_class"]),
-                                        importlib.import_module(self.config["image_rerank"]["processor_class"]),
+                                        dynamic_import("transformers", self.config["image_rerank"]["model_class"]),
+                                        dynamic_import("transformers", self.config["image_rerank"]["processor_class"]),
                                         device=self.device,)
 
         self.semantic_chunk = SemanticChunk(self.config["semantic_chunk"]["chunking_model"],
@@ -43,8 +47,8 @@ class Inference:
                                               self.config["interpret_image"]["model_name"],
                                               self.config["interpret_image"]["model_kwargs"],
                                               self.config["interpret_image"]["processor_kwargs"],
-                                              importlib.import_module(self.config["interpret_image"]["model_class"]),
-                                              importlib.import_module(self.config["interpret_image"]["processor_class"]),
+                                              dynamic_import("transformers", self.config["interpret_image"]["model_class"]),
+                                              dynamic_import("transformers", self.config["interpret_image"]["processor_class"]),
                                               device=self.device )
 
         #TODO
@@ -55,11 +59,11 @@ class Inference:
 
     #TODO need to check if this is immediately compatible with the db
     def embed_text(self, texts):
-        embeddings=self.text_embed(texts)
+        embeddings=self.text_embed.encode(texts)
         return embeddings
 
     def embed_image(self, images):
-        embeddings=self.image_embed(images)
+        embeddings=self.image_embed.embed(images)
         return embeddings
 
     def rerank_text(self, query, texts):
@@ -79,12 +83,12 @@ class Inference:
         return self.interpret_image.interpret(images)
 
     def text_score(self, query, texts):
-        query_chunks = self.chunk_text(query)
+        query_chunks = [item[1] for item in self.chunk_text(query)]
         query_embeddings = self.embed_text(query_chunks)
         query_embeddings = torch.tensor(query_embeddings)
         scores = []
         for text in texts:
-            text_chunks = self.chunk_text(text)
+            text_chunks = [item[1] for item in self.chunk_text(text)]
             text_embeddings = self.embed_text(text_chunks)
             text_embeddings = torch.tensor(text_embeddings)
             similarity_scores = torch.matmul(query_embeddings, text_embeddings.T)
