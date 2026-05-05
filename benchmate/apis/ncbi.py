@@ -3,11 +3,10 @@ import warnings
 import requests
 from Bio import Entrez
 from bs4 import BeautifulSoup as bs
-from markdown_it.rules_inline import link
 
 from benchmate.apis.utils import api_call
 
-# thin wrapper around the NCBI Entrez API and BioPython
+#TODO this is probably better done via requests
 class Ncbi:
     def __init__(self, access_key=None, email=None, collect_info=False):
         """
