@@ -7,6 +7,7 @@ import numpy as np
 from sqlalchemy import select, insert
 from PIL import Image
 from sqlalchemy.exc import NoResultFound
+from sqlalchemy.testing.plugin.plugin_base import warnings
 
 from benchmate.utils.general_utils import DataIntegrityError
 
@@ -53,34 +54,41 @@ class PaperInfo:
     #cited by table
     cited_by: Optional[list] = None
 
-    #TODO fix
     def to_kb(self, project):
         papers_table = project.kb.db_tables["papers"]
         figures_table = project.kb.db_tables["figures"]
         tables_table = project.kb.db_tables["tables"]
-        body_text_table = project.kb.db_tables["body_text"]
         chunked_text_table = project.kb.db_tables["body_text_chunked"]
         references_table = project.kb.db_tables["references"]
         related_works_table = project.kb.db_tables["related_works"]
         cited_by_table = project.kb.db_tables["cited_by"]
 
-        #TODO this is the part that needs fixing
-        stms = insert(papers_table.c.source_id, papers_table.c.source, papers_table.c.title,
-                      papers_table.c.project_id,
-                      papers_table.c.abstract, papers_table.c.abstract_embeddings,
-                      papers_table.c.pdf_url, papers_table.c.pdf_path,
-                      papers_table.c.full_json,
-                      papers_table.c.authors).values(self.id, self.external_ids,
-                                                         self.title,
-                                                         project.project_id,
-                                                         self.abstract,
-                                                         self.abstract_embeddings,
-                                                         self.download_links,
-                                                         self.file_path,
-                                                         self.full_json,
-                                                         self.authors).returning(papers_table.c.paper_id)
-        
-        paper_id = project.kb.session().execute(stms).scalars().one()
+        #check if paper exists
+        check_stmt=papers_table.select(papers_table.c.id).where(papers_table.c.id==self.id)
+        existing=project.kb.session().execute(check_stmt).scalars().fetchall()
+        if len(existing)>1:
+            raise DataIntegrityError(f"Found more than one paper with id:{self.id}")
+
+        if len(existing)==1:
+            warnings.warn(f"Paper with openlalex id {self.id} already exists within the project")
+            return existing[0]
+
+        stmt=insert(papers_table.c.project_id,
+                    papers_table.c.paper_id,
+                    papers_table.c.external_ids,
+                    papers_table.c.title,
+                    papers_table.c.abstract,
+                    papers_table.c.abstract_embeddings,
+                    papers_table.c.download_links,
+                    papers_table.c.file_paths,
+                    papers_table.c.full_json,
+                    papers_table.c.authors,
+                    papers_table.c.full_text).values(
+            self.id, self.external_ids, self.title, self.abstract, self.abstract_embeddings,
+            self.download_links, self.file_paths, self.full_json, self.authors,self.text).returning(papers_table.c.id)
+
+
+        paper_id = project.kb.session().execute(stmt).scalars().one()
 
         if self.figures is not None:
             for i in range(len(self.figures)):
@@ -124,35 +132,33 @@ class PaperInfo:
                                                                                            )
                 project.kb.session().execute(table_smts)
 
-        if self.text is not None:
-            text_stms = insert(body_text_table.c.paper_id, body_text_table.c.text, ).values(paper_id, self.text)
-            project.kb.session().execute(text_stms)
-
+        # we will check if you have embedded them
         if self.text_chunks is not None:
             for i in range(len(self.text_chunks)):
-                chunk_stms = insert(chunked_text_table.c.paper_id, chunked_text_table.c.chunk,
+                chunk_stms = insert(chunked_text_table.c.paper_id,
+                                    chunked_text_table.c.chunk_id,
+                                    chunked_text_table.c.chunk,
                                     chunked_text_table.c.chunk_embeddings).values(paper_id,
-                                                                                  self.text_chunks[i],
+                                                                                  self.text_chunks[i][0],
+                                                                                  self.text_chunks[i][1],
                                                                                   self.chunk_embeddings[i].tolist())
                 project.kb.session().execute(chunk_stms)
 
         if self.references is not None:
             for paper in self.references:
-                existing = select(papers_table.c.paper_id).where(papers_table.c.source_id == paper.id,
-                                                                 papers_table.c.id_type == paper.id_type)
+                existing = select(papers_table.c.paper_id).where(papers_table.c.paper_id == paper.id)
                 ref_id = project.kb.session().execute(existing).scalar()
                 if ref_id is None:
-                    ref_id = project.add_papers(paper)
+                    ref_id = paper.to_kb(project)
                 stms = insert(references_table.c.paper_id, references_table.c.id, ).values(paper_id, ref_id)
                 project.kb.session().execute(stms)
 
         if self.related_works is not None:
             for paper in self.related_works:  #
-                existing = select(papers_table.c.paper_id).where(papers_table.c.source_id == paper.id,
-                                                                 papers_table.c.id_type == paper.id_type)
+                existing = select(papers_table.c.paper_id).where(papers_table.c.source_id == paper.id)
                 related_id = project.kb.session().execute(existing).scalar()
                 if related_id is None:
-                    related_id = project.add_papers(paper)
+                    related_id = paper.to_kb(project)
                 stms = insert(related_works_table.c.paper_id, related_works_table.c.id, ).values(paper_id, related_id)
                 project.kb.session().execute(stms)
 
@@ -162,7 +168,7 @@ class PaperInfo:
                                                                  papers_table.c.id_type == paper.id_type)
                 cited_id = project.kb.session().execute(existing).scalar()
                 if cited_id is None:
-                    cited_id = project.add_papers(paper)
+                    cited_id = paper.to_kb(project)
                 stms = insert(cited_by_table.c.paper_id, cited_by_table.c.id, ).values(paper_id, cited_id)
                 project.kb.session().execute(stms)
 
@@ -181,18 +187,17 @@ class PaperInfo:
         cited_by_table = project.kb.db_tables["cited_by"]
 
         #this is the part that needs fixing
-        selection = select(
-            papers_table.c.source_id,
-            papers_table.c.source,
-            papers_table.c.title,
-            papers_table.c.abstract,
-            papers_table.c.abstract_embeddings,
-            papers_table.c.text,
-            papers_table.c.pdf_url,
-            papers_table.c.pdf_path,
-            papers_table.c.full_json,
-            papers_table.c.authors,
-        ).where(papers_table.c.paper_id == id)
+        selection = select(papers_table.c.paper_id,
+                           papers_table.c.external_ids,
+                           papers_table.c.title,
+                           papers_table.c.abstract,
+                           papers_table.c.abstract_embeddings,
+                           papers_table.c.download_links,
+                           papers_table.c.file_paths,
+                           papers_table.c.full_json,
+                           papers_table.c.authors,
+                           papers_table.c.full_text).where(papers_table.c.paper_id == id)
+
         paper_info = project.kb.session().execute(selection).fetchall()
 
         if len(paper_info) > 1:
@@ -200,6 +205,7 @@ class PaperInfo:
         elif len(paper_info) == 0:
             raise NoResultFound("Could not find a paper with id:{}".format(id))
         else:
+            
             paper = cls(paper_id=paper_info[0][0], id_type=paper_info[0][1], get_abstract=False)
             paper.title = paper_info[0][2]
             paper.abstract = paper_info[0][3]
@@ -219,6 +225,7 @@ class PaperInfo:
                          figures_table.c.ai_caption,
                          figures_table.c.figure_interpretation_embeddings).where(figures_table.c.paper_id == id)
         figures = project.kb.session().execute(figures).fetchall()
+
         if len(figures) == 0:
             paper.figures = None
         else:
@@ -249,6 +256,7 @@ class PaperInfo:
             paper.text_chunks = [chunk[0] for chunk in chunks]
             paper.chunk_embeddings = [chunk[1] for chunk in chunks]
 
+        #TODO reference creatingn does not work here I need to check what's being returned.
         references = select(references_table.c.target_id).where(references_table.c.paper_id == id)
         references = project.kb.session().execute(references).fetchall()
         if len(references) == 0:

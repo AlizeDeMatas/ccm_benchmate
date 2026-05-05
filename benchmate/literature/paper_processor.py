@@ -83,7 +83,7 @@ class PaperProcessor:
         :return: paper class instance with all the attributes filled
         """
         if extract:
-            model = lp.Detectron2LayoutModel(   model_path=self.config["layout_model"]["model"],
+            model = lp.Detectron2LayoutModel( model_path=self.config["layout_model"]["model"],
                                             config_path=self.config["layout_model"]["config"],
                                             label_map={0: "Text", 1: "Title", 2: "List", 3: "Table", 4: "Figure"},
                                             extra_config=["MODEL.ROI_HEADS.SCORE_THRESH_TEST", 0.8],
@@ -95,8 +95,10 @@ class PaperProcessor:
 
         if embed_text:
             for paper in papers:
-                paper.info.text_chunks =self.inference.chunk_text(paper.info.text)
-                paper.info.chunk_embeddings= self.inference.embed_text(paper.info.text_chunks)
+                # the chunked text is a list of lists, since we are chunking one paper at a time the top level will
+                paper.info.text_chunks =self.inference.chunk_text(paper.info.text) # to this returns a list of (index, chunk)
+                chunks=[item[1] for item in paper.info.text_chunks[0]]
+                paper.info.chunk_embeddings= self.inference.embed_text(chunks)
 
         if embed_images:
             for paper in papers:
