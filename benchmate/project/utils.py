@@ -13,7 +13,9 @@ from benchmate.apis.stringdb import StringDb
 from benchmate.apis.reactome import Reactome
 from benchmate.apis.ebi import EBI
 from benchmate.apis.ols import OLS
-from benchmate.apis.others import IntAct, BioGrid, AlphaGenome
+from benchmate.apis.biogrid import BioGrid
+from benchmate.apis.alphagenome import AlphaGenome
+from benchmate.apis.intact import IntAct
 from benchmate.apis.rnacentral import RnaCentral
 from benchmate.apis.ncbi import Ncbi
 
