@@ -50,8 +50,13 @@ class TextEmbed(CleanupMixin):
 
     def encode(self, texts):
         embeddings = self.model.encode(texts)
-        self.cleanup_model(self.model)
         return embeddings
+
+    @staticmethod
+    def cleanup(self, model=False):
+        self.cleanup_cuda()
+        if model:
+            self.cleanup_model(self.model)
 
 
 class TextRerank(CleanupMixin):
@@ -107,10 +112,14 @@ class TextRerank(CleanupMixin):
                 probs = torch.softmax(two_logits, dim=0)  # (2,)
                 prob_yes = probs[1].item()
                 relevance.append(prob_yes)
-                self.cleanup_cuda()
 
-        self.cleanup_model(self.model)
         return relevance
+
+    @staticmethod
+    def cleanup(self, model=False):
+        self.cleanup_cuda()
+        if model:
+            self.cleanup_model(self.model)
 
 
 class ImageEmbed(CleanupMixin):
@@ -143,8 +152,13 @@ class ImageEmbed(CleanupMixin):
         emb = self.model.get_image_features(**inputs)
         emb = emb / emb.norm(dim=-1, keepdim=True)
         emb = emb.cpu().numpy().astype("float32")
-        self.cleanup_model(self.model)
         return emb
+
+    @staticmethod
+    def cleanup(self, model=False):
+        self.cleanup_cuda()
+        if model:
+            self.cleanup_model(self.model)
 
 class ImageRerank(CleanupMixin):
     def __init__(self, cache_dir, model_name, model_kwargs, processor_kwargs,
@@ -184,8 +198,13 @@ class ImageRerank(CleanupMixin):
             **inputs
         )
         scores= scores.cpu().numpy()
-        self.cleanup_model(self.model)
         return scores
+
+    @staticmethod
+    def cleanup(self, model=False):
+        self.cleanup_cuda()
+        if model:
+            self.cleanup_model(self.model)
 
 
 class SemanticChunk(CleanupMixin):
@@ -273,10 +292,13 @@ class InterpretImage(CleanupMixin):
             output_text = self.processor.batch_decode(
                 generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False)
             outputs.append(output_text)
-            self.cleanup_cuda()
-
-        self.cleanup_model(self.model)
         return outputs
+
+    @staticmethod
+    def cleanup(self, model=False):
+        self.cleanup_cuda()
+        if model:
+            self.cleanup_model(self.model)
 
 class ExtractInfo(CleanupMixin):
     def __init__(
@@ -415,10 +437,13 @@ Text:
                 parsed = decoded  # fallback to raw string
 
             results.append(parsed)
-            self.cleanup_cuda()
-
-        self.cleanup_model()
         return results
+
+    @staticmethod
+    def cleanup(self, model=False):
+        self.cleanup_cuda()
+        if model:
+            self.cleanup_model(self.model)
 
 
 
