@@ -1,8 +1,7 @@
 import importlib
 
 import torch
-from benchmate.inference.utils import (TextRerank, TextEmbed, ImageRerank,
-                                       ImageEmbed, SemanticChunk, InterpretImage,
+from benchmate.inference.utils import (Embeddings, ReRank, SemanticChunk, InterpretImage,
                                        ExtractInfo)
 
 def dynamic_import(module_name: str, class_name: str):
@@ -13,32 +12,23 @@ class Inference:
     def __init__(self, config):
         self.config = config
         self.device="cuda" if torch.cuda.is_available() else "cpu"
-        self.text_embed = TextEmbed(self.config["text_embed"]["cache_dir"],
-                                    self.config["text_embed"]["model_name"],
-                                    device=self.device,)
 
-        self.text_rerank = TextRerank(self.config["text_rerank"]["cache_dir"],
-                                      self.config["text_rerank"]["model_name"],
-                                      self.config["text_rerank"]["model_kwargs"],
-                                      self.config["text_rerank"]["tokenizer_kwargs"],
-                                      device=self.device,
-                                     )
+        self.embed=Embeddings(self.config["embedding"]["cache_dir"],
+                              self.config["embedding"]["model_name"],
+                              self.config["embedding"]["model_kwargs"],
+                              self.config["embedding"]["processor_kwargs"],
+                              self.config["embedding"]["quantization_kwargs"],
+                              self.config["embedding"]["prompt"],
+                              self.device,)
 
-        self.image_embed = ImageEmbed(self.config["image_embed"]["cache_dir"],
-                                      self.config["image_embed"]["model_name"],
-                                      self.config["image_embed"]["model_kwargs"],
-                                      self.config["image_embed"]["processor_kwargs"],
-                                      dynamic_import("transformers", self.config["image_embed"]["model_class"]),
-                                      dynamic_import("transformers", self.config["image_embed"]["processor_class"]),
-                                      device=self.device)
 
-        self.image_rerank = ImageRerank(self.config["image_rerank"]["cache_dir"],
-                                        self.config["image_rerank"]["model_name"],
-                                        self.config["image_rerank"]["model_kwargs"],
-                                        self.config["image_rerank"]["processor_kwargs"],
-                                        dynamic_import("transformers", self.config["image_rerank"]["model_class"]),
-                                        dynamic_import("transformers", self.config["image_rerank"]["processor_class"]),
-                                        device=self.device,)
+        self.rerank=ReRank(self.config["rerank"]["cache_dir"],
+                           self.config["rerank"]["model_name"],
+                           self.config["rerank"]["model_kwargs"],
+                           self.config["rerank"]["processor_kwargs"],
+                           self.config["rerank"]["quantization_kwargs"],
+                           self.config["rerank"]["prompt"],
+                           self.device,)
 
         self.semantic_chunk = SemanticChunk(self.config["semantic_chunk"]["chunking_model"],
                                             **self.config["semantic_chunk"]["chunking_kwargs"],)
@@ -51,7 +41,6 @@ class Inference:
                                               dynamic_import("transformers", self.config["interpret_image"]["processor_class"]),
                                               device=self.device )
 
-        #TODO
         self.extract_info = ExtractInfo(self.config["extract_info"]["cache_dir"],
                                         self.config["extract_info"]["model_name"],
                                         self.config["extract_info"]["model_kwargs"],

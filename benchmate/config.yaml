@@ -40,41 +40,46 @@ inference:
       max_new_tokens: 100 # other generation kwargs that you want to pass in, this is passed to model.generate
     quantization_kwargs: {} # if you want to use bitsandbytes quantization you can pass it here
 
-  text_embed: #this is the model that is used to embed the text
+  embeddings: #this is the model that is used to embed the text
     cache_dir: /hpf/largeprojects/ccmbio/acelik_files/ccm_benchmate/benchmate/models/hf_models
-    model_name: Qwen/Qwen3-Embedding-0.6B
-    dimensions: 1024
-    model_kwargs: {}
-
-  text_rerank:
-    cache_dir: /hpf/largeprojects/ccmbio/acelik_files/ccm_benchmate/benchmate/models/hf_models
-    model_name: Qwen/Qwen3-Rerank-0.6B
-    prefix: "<|im_start|>system\n
-            Judge whether the Document meets the requirements based on the Query and the Instruct provided. 
-            Note that the answer can only be \"yes\" or \"no\".<|im_end|>\n
-            <|im_start|>user\n"
-    suffix: "<|im_end|>\n
-            <|im_start|>assistant\n
-            <think>\n\n</think>\n\n"
-    model_kwargs: {}
-    tokenizer_kwargs: {}
-
-  image_embed:
-    cache_dir: /hpf/largeprojects/ccmbio/acelik_files/ccm_benchmate/benchmate/models/hf_models
-    model_name: microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224
-    processor_class: CLIPProcessor
-    model_class: CLIPModel
-    dimensions: 512
+    model_name: Qwen/Qwen3-VL-Embedding-8B
     model_kwargs: {}
     processor_kwargs: {}
+    prompt: "Represent this scientific document for retrieval, focusing on methodology, data, and technical scientific meaning."
+    quantization_kwargs:
+      load_in_4bit: true
+      bnb_4bit_quant_type: nf4
+      bnb_4bit_use_double_quant: true
+    dimensions: 4096
 
-  image_rerank:
+  rerank:
     cache_dir: /hpf/largeprojects/ccmbio/acelik_files/ccm_benchmate/benchmate/models/hf_models
-    model_name: vidore/colpali-v1.3
-    model_class: ColPaliForRetrieval
-    processor_class: ColPaliProcessor
-    model_kwargs: {}
-    processor_kwargs: {}
+    model_name: Qwen/Qwen3-VL-Reranker-8B
+    model_kwargs: { }
+    processor_kwargs: { }
+    quantization_kwargs: {}
+    prompt: "
+    You are a scientific reranking model.
+    Evaluate how relevant the candidate is to the query.
+    Consider:
+      - Exact match of scientific concept, method, or finding
+      - Correct interpretation of figures or tables if present
+      - Alignment of key variables and outcomes
+
+    Penalize:
+      - Partial matches
+      - Different experimental setups
+      - Superficial keyword overlap
+
+    Query:
+      {query}
+
+    Candidate:
+      {candidate}
+
+    Output only:
+    Score: <0-100>
+"
 
   semantic_chunk:
     chunking_model: /hpf/largeprojects/ccmbio/acelik_files/ccm_benchmate/benchmate/models/m2v_model
@@ -85,11 +90,10 @@ inference:
 
   extract_info:
     cache_dir: /hpf/largeprojects/ccmbio/acelik_files/ccm_benchmate/benchmate/models/hf_models
-    model_name: google/medgemma-27b-it
-    model_class: AutoModelForImageTextToText
-    processor_class: AutoProcessor
+    model_name: google/medgemma-27b-text-it
+    model_class: AutoModelForCausalLM
     model_kwargs: {}
-    processor_kwargs: {}
+    tokenizer_kwargs: {}
     quantization_kwargs:
       load_in_4bit: true
       bnb_4bit_quant_type: nf4
