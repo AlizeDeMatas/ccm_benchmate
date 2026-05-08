@@ -27,6 +27,8 @@ class PaperInfo:
     file_paths: Optional[list] = None
     full_json: Optional[dict] = None
     authors: Optional[list] = None
+    publication_date: Optional[str] = None
+    venue: Optional[str] = None
     text: Optional[str] = None
 
     #body_text_chunk table
@@ -83,9 +85,12 @@ class PaperInfo:
                     papers_table.c.file_paths,
                     papers_table.c.full_json,
                     papers_table.c.authors,
+                    papers_table.c.publication_date,
+                    papers_table.c.venue,
                     papers_table.c.full_text).values(
             self.id, self.external_ids, self.title, self.abstract, self.abstract_embeddings,
-            self.download_links, self.file_paths, self.full_json, self.authors,self.text).returning(papers_table.c.id)
+            self.download_links, self.file_paths, self.full_json, self.authors,
+            self.publication_date, self.venue, self.text).returning(papers_table.c.id)
 
 
         paper_id = project.kb.session().execute(stmt).scalars().one()

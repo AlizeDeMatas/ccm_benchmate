@@ -193,7 +193,10 @@ class Paper:
         self.info.title=self.info.full_json["title"]
         self.info.abstract=reconstruct_abstract(self.info.full_json["abstract_inverted_index"])
         self.info.external_ids=self.info.full_json["ids"]
+        self.info.publication_date=self.info.full_json["publication_date"] if "publication_date" in self.info.full_json.keys() else None
+        self.info.venue=self.info.full_json["primary_location"]["raw_source_name"] if "primary_location" in self.info.full_json.keys() else None
         self.info.download_links=[]
+
         if self.info.full_json["open_access"]["is_oa"]:
             if self.info.full_json["has_content"]["pdf"]:
                 self.info.download_links.append(self.info.full_json["content_urls"]["pdf"])
