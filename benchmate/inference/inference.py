@@ -13,16 +13,16 @@ class Inference:
         self.config = config
         self.device="cuda" if torch.cuda.is_available() else "cpu"
 
-        self.embed=Embeddings(self.config["embedding"]["cache_dir"],
-                              self.config["embedding"]["model_name"],
-                              self.config["embedding"]["model_kwargs"],
-                              self.config["embedding"]["processor_kwargs"],
-                              self.config["embedding"]["quantization_kwargs"],
-                              self.config["embedding"]["prompt"],
-                              self.device,)
+        self.embeddings=Embeddings(self.config["embedding"]["cache_dir"],
+                                   self.config["embedding"]["model_name"],
+                                   self.config["embedding"]["model_kwargs"],
+                                   self.config["embedding"]["processor_kwargs"],
+                                   self.config["embedding"]["quantization_kwargs"],
+                                   self.config["embedding"]["prompt"],
+                                   self.device, )
 
 
-        self.rerank=ReRank(self.config["rerank"]["cache_dir"],
+        self.reranker=ReRank(self.config["rerank"]["cache_dir"],
                            self.config["rerank"]["model_name"],
                            self.config["rerank"]["model_kwargs"],
                            self.config["rerank"]["processor_kwargs"],
@@ -46,24 +46,13 @@ class Inference:
                                         self.config["extract_info"]["model_kwargs"],
                                         self.config["extract_info"]["processor_kwargs"],)
 
-    #TODO need to check if this is immediately compatible with the db
-    def embed_text(self, texts):
-        embeddings=self.text_embed.encode(texts)
+    def embed(self, items):
+        embeddings=self.embeddings.encode(items)
         return embeddings
 
-    def embed_image(self, images):
-        embeddings=self.image_embed.embed(images)
-        return embeddings
-
-    def rerank_text(self, query, texts):
-        scores=self.text_rerank.rerank(self.config["text_rerank"]["prefix"],
-                                self.config["text_rerank"]["suffix"],
-                                query, texts)
-        return [(score, image) for score, image in sorted(zip(scores, texts), reverse=True)]
-
-    def rerank_image(self, query, images):
-        scores=self.image_rerank.rerank(query, images)
-        return [(score, image) for score, image in sorted(zip(scores, images), reverse=True)]
+    def rerank(self, query, items):
+        scores=self.reranker.rerank(query, items)
+        return [(score, item) for score, item in sorted(zip(scores, items), reverse=True)]
 
     def chunk_text(self, text):
         return self.semantic_chunk.chunk_text(text)
@@ -72,13 +61,13 @@ class Inference:
         return self.interpret_image.interpret(images)
 
     def text_score(self, query, texts):
-        query_chunks = [item[1] for item in self.chunk_text(query)]
-        query_embeddings = self.embed_text(query_chunks)
+        query_chunks = [{"type":"text", "text":item[1]} for item in self.chunk_text(query)]
+        query_embeddings = self.embed(query_chunks)
         query_embeddings = torch.tensor(query_embeddings)
         scores = []
         for text in texts:
-            text_chunks = [item[1] for item in self.chunk_text(text)]
-            text_embeddings = self.embed_text(text_chunks)
+            text_chunks = [{"type":"text", "text":item[1]} for item in self.chunk_text(text)]
+            text_embeddings = self.embed(text_chunks)
             text_embeddings = torch.tensor(text_embeddings)
             similarity_scores = torch.matmul(query_embeddings, text_embeddings.T)
             score = self._symmetric_score(similarity_scores)

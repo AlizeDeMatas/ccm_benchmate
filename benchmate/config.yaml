@@ -19,9 +19,7 @@ literature:
    describing that you are looking at figure from a scientific publication. Whenever possible very briefly describe each sections of the figure 
    and then give an overall conclusion about what the figure tells us"
   layout_model: #this is specific to literature, other models will not be using it also uses a specific model
-    config: /hpf/largeprojects/ccmbio/acelik_files/ccm_benchmate/benchmate/models/lp_model/config.yaml
-    model: /hpf/largeprojects/ccmbio/acelik_files/ccm_benchmate/benchmate/models/lp_model/pytorch_model.bin
-    kwargs: {}
+    model: /hpf/largeprojects/ccmbio/acelik_files/ccm_benchmate/benchmate/models/lp_model/yolo26m_doc_layout.onnx
   pdf_path: benchmate/data/pdfs
   openalex_api_key: api_key_goes_here
 

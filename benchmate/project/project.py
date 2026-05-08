@@ -2,7 +2,6 @@ import pandas as pd
 import yaml
 from functools import cached_property, partial
 
-from openai import project
 from sqlalchemy import select, insert, create_engine
 
 from benchmate.knowledge_base.knowledge_base import KnowledgeBase
@@ -19,6 +18,7 @@ from benchmate.genome.genome import Genome
 from benchmate.ranges.genomicranges import (GenomicRange,
                                             CompoundGenomicRange,
                                             GenomicRangesList, GenomicRangesDict)
+
 from benchmate.ranges.ranges import Range, RangesList, RangesDict
 from benchmate.variant.variant import SequenceVariant, StructuralVariant, TandemRepeatVariant
 
