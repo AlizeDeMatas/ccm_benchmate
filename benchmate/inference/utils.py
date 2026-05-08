@@ -1,19 +1,17 @@
 import gc
 from functools import cached_property
-
+from collections.abc import Iterable
+import json
 import torch
 
-#these are my recomendations, you can pass your own see main config.yaml
-from transformers import (AutoTokenizer, AutoModelForCausalLM, AutoProcessor,
-                          CLIPModel, CLIPProcessor, ColPaliProcessor,
+from transformers import (AutoTokenizer, AutoModelForCausalLM, AutoProcessor, AutoModelForImageTextToText,
+                          CLIPModel, CLIPProcessor, ColPaliProcessor,BitsAndBytesConfig,
                           ColPaliForRetrieval, Qwen2_5_VLForConditionalGeneration)
 
 from chonkie import SemanticChunker, Model2VecEmbeddings
-from sentence_transformers import SentenceTransformer
+from sentence_transformers import SentenceTransformer, CrossEncoder
 from qwen_vl_utils import process_vision_info
 
-
-#TODO this is vram cleanup
 class CleanupMixin:
     def cleanup_cuda(self):
         """Fully clears GPU memory."""
@@ -34,157 +32,88 @@ class CleanupMixin:
         self.cleanup_cuda()
 
 
-
-class TextEmbed(CleanupMixin):
-    def __init__(self, cache_dir, model_name, kwargs=None, device="cuda"):
-        self.cache_dir = cache_dir
-        self.model_name = model_name
-        self.kwargs = kwargs if kwargs is not None else {}
-        self.device = device
-
-    @cached_property
-    def model(self):
-        model = SentenceTransformer(self.model_name, **self.kwargs, cache_folder=self.cache_dir)
-        return model
-
-    def encode(self, texts):
-        embeddings = self.model.encode(texts)
-        self.cleanup_model(self.model)
-        return embeddings
-
-
-class TextRerank(CleanupMixin):
-    def __init__(self, cache_dir, model_name, model_kwargs=None, tokenizer_kwargs=None, device="cuda"):
+class Embeddings(CleanupMixin):
+    def __init__(self, cache_dir, model_name, model_kwargs=None,
+                 processor_kwargs=None, quantization_kwargs=None,
+                 prompt= None,
+                 device="cuda"):
         self.cache_dir = cache_dir
         self.model_name = model_name
         self.model_kwargs = model_kwargs if model_kwargs is not None else {}
-        self.tokenizer_kwargs = tokenizer_kwargs if tokenizer_kwargs is not None else {}
+        if quantization_kwargs is not None:
+            quantization=BitsAndBytesConfig(**quantization_kwargs)
+            self.model_kwargs["quantization_config"]=quantization
+        if processor_kwargs is not None:
+            self.model_kwargs["processor_kwargs"]=processor_kwargs
         self.device = device
+        self.prompt = prompt
 
     @cached_property
     def model(self):
-        model=AutoModelForCausalLM.from_pretrained(self.model_name, cache_dir=self.cache_dir, device_map=self.device,
-                                                   **self.model_kwargs)
+        self.model_kwargs["torch_dtype"]=torch.bfloat16
+        model=SentenceTransformer(self.model_name, cache_folder=self.cache_dir,
+                                  model_kwargs=self.model_kwargs)
         return model
 
-    @cached_property
-    def tokenizer(self):
-        tokenizer=AutoTokenizer.from_pretrained(self.model_name, self.cache_dir, **self.tokenizer_kwargs)
-        return tokenizer
+    def encode(self, items):
+        """
+        encode items into embeddings, these can be images or texts or a pair of both
+        :param items: this is a list of dict, and it HAS TO look like this
+        [{"type":"text", "text":<the actual text>}, # text only
+        {"type": "image", "image":<actual image>}, # image only
+        {"type: "image", "image": <actual image>, "type": "text", "text":<actual text>}] #image text combo
+        :return: embeddings dim 4096
+        """
+        embeddings = self.model.encode(items, prompt=self.prompt, device=self.device)
+        return embeddings
 
-    def rerank(self, prefix, suffix, query, texts):
-        prefix_tokens = self.tokenizer.encode(prefix, add_special_tokens=False)
-        suffix_tokens = self.tokenizer.encode(suffix, add_special_tokens=False)
-
-        token_id_yes = self.tokenizer.convert_tokens_to_ids("yes")
-        token_id_no = self.tokenizer.convert_tokens_to_ids("no")
-
-        relevance = []
-        for text in texts:
-            prompt = prompt.format(query=query, context=text)
-            inputs = self.tokenizer(
-                prompt,
-                truncation="longest_first",
-                max_length=8192 - len(prefix_tokens) - len(suffix_tokens),
-                add_special_tokens=False,
-            )
-            input_ids = [prefix_tokens + inputs["input_ids"] + suffix_tokens]
-            attention_mask = [[1] * len(input_ids[0])]
-            batch = {
-                "input_ids": torch.tensor(input_ids, dtype=torch.long, device=self.device),
-                "attention_mask": torch.tensor(attention_mask, dtype=torch.long, device=self.device),
-            }
-
-            with torch.inference_mode():
-                outputs = self.model(**batch)
-                logits = outputs.logits  # (1, L, V)
-                last_logits = logits[:, -1, :]  # (1, V)
-                score_no = last_logits[0, token_id_no]
-                score_yes = last_logits[0, token_id_yes]
-                # Compute softmax over the two (no, yes)
-                two_logits = torch.stack([score_no, score_yes], dim=0)  # shape (2,)
-                probs = torch.softmax(two_logits, dim=0)  # (2,)
-                prob_yes = probs[1].item()
-                relevance.append(prob_yes)
-                self.cleanup_cuda()
-
-        self.cleanup_model(self.model)
-        return relevance
+    @staticmethod
+    def cleanup(self, model=False):
+        self.cleanup_cuda()
+        if model:
+            self.cleanup_model(self.model)
 
 
-class ImageEmbed(CleanupMixin):
-    def __init__(self, cache_dir, model_name, model_kwargs, processor_kwargs,
-                 model_class=CLIPModel, processor_class=CLIPProcessor, device="cuda"):
+class ReRank(CleanupMixin):
+    def __init__(self, cache_dir, model_name, model_kwargs=None,
+                 processor_kwargs=None, quantization_kwargs=None,
+                 prompt=None,
+                 device="cuda"):
         self.cache_dir = cache_dir
         self.model_name = model_name
-        self.model_class=  model_class
-        self.processor_class=processor_class
-        self.model_kwargs = model_kwargs
-        self.processor_kwargs = processor_kwargs
+        self.model_kwargs = model_kwargs if model_kwargs is not None else {}
+        if quantization_kwargs is not None:
+            quantization = BitsAndBytesConfig(**quantization_kwargs)
+            self.model_kwargs["quantization_config"] = quantization
+        if processor_kwargs is not None:
+            self.model_kwargs["processor_kwargs"] = processor_kwargs
         self.device = device
+        self.prompt = prompt
 
     @cached_property
     def model(self):
-        model=self.model_class.from_pretrained(self.model_name, cache_dir=self.cache_dir,
-                                               device_map=self.device, **self.model_kwargs)
+        model=CrossEncoder(self.model_name, cache_folder=self.cache_dir, model_kwargs=self.model_kwargs,
+        device=self.device)
+
         return model
 
-    @cached_property
-    def processor(self):
-        processor=self.processor_class.from_pretrained(self.model_name, cache_dir=self.cache_dir, **self.processor_kwargs)
-        return processor
-
-    @torch.inference_mode()
-    def embed(self, images):
-        inputs = self.processor(images=images, return_tensors="pt")
-        inputs = {k: v.to(self.device) for k, v in inputs.items()}
-
-        emb = self.model.get_image_features(**inputs)
-        emb = emb / emb.norm(dim=-1, keepdim=True)
-        emb = emb.cpu().numpy().astype("float32")
-        self.cleanup_model(self.model)
-        return emb
-
-class ImageRerank(CleanupMixin):
-    def __init__(self, cache_dir, model_name, model_kwargs, processor_kwargs,
-                 model_class=ColPaliForRetrieval, processor_class=ColPaliProcessor, device="cuda"):
-        self.cache_dir = cache_dir
-        self.model_name = model_name
-        self.model_class=  model_class
-        self.processor_class=processor_class
-        self.model_kwargs = model_kwargs
-        self.processor_kwargs = processor_kwargs
-        self.device = device
-
-    @cached_property
-    def model(self):
-        model=self.model_class.from_pretrained(self.model_name, cache_dir=self.cache_dir,
-                                               device_map=self.device, **self.model_kwargs)
-        return model
-
-    @cached_property
-    def processor(self):
-        processor=self.processor_class.from_pretrained(self.model_name, cache_dir=self.cache_dir,
-                                                       **self.processor_kwargs)
-        return processor
-
-    @torch.inference_mode()
-    def rerank(self, query, images):
-        inputs = self.processor(
-            images=[query] + images,
-            return_tensors="pt",
-            padding=True
-        )
-        inputs = {k: v.to(self.device) for k, v in inputs.items()}
-
-        scores = self.model.score_images(
-            query_index=0,
-            candidate_indices=list(range(1, len(images) + 1)),
-            **inputs
-        )
-        scores= scores.cpu().numpy()
-        self.cleanup_model(self.model)
+    def rerank(self, query, items):
+        """
+         encode items into embeddings, these can be images or texts or a pair of both
+         :param items: this is a list of dict, and it HAS TO look like this
+         [{"type":"text", "text":<the actual text>}, # text only
+         {"type": "image", "image":<actual image>}, # image only
+         {"type: "image", "image": <actual image>, "type": "text", "text":<actual text>}] #image text combo
+         :return: ranking score
+         """
+        scores=self.model.rank(query, items, self.prompt)
         return scores
+
+    @staticmethod
+    def cleanup(self, model=False):
+        self.cleanup_cuda()
+        if model:
+            self.cleanup_model(self.model)
 
 
 class SemanticChunk(CleanupMixin):
@@ -211,24 +140,41 @@ class SemanticChunk(CleanupMixin):
             min_sentences=self.min_sentences,  # Initial sentences per chunk,
             return_type="texts"  # return a list of strings
         )
-        chunks = chunker.chunk(texts) #this is a list of list of strings
-        return chunks
+        if not isinstance(texts, list):
+            texts=[texts]
+
+        chunked_texts = []
+        for text in texts:
+            chunked=chunker.chunk(text)
+            for index, chunk in enumerate(chunked):
+                chunked_texts.append((index, chunk))
+
+        return chunked_texts
 
 
 class InterpretImage(CleanupMixin):
-    def __init__(self, cache_dir, model_name, model_kwargs, processor_kwargs,
-                 model_class=Qwen2_5_VLForConditionalGeneration, processor_class=AutoProcessor, device="cuda"):
+    def __init__(self, cache_dir, model_name, model_kwargs, processor_kwargs, quantization_kwargs,
+                 model_class=Qwen2_5_VLForConditionalGeneration,
+                 processor_class=AutoProcessor, device="cuda"):
         self.cache_dir = cache_dir
         self.model_name = model_name
         self.model_class=  model_class
         self.model_kwargs=model_kwargs
+        if quantization_kwargs is not None:
+            self.quantization = BitsAndBytesConfig(**quantization_kwargs)
+        else:
+            self.quantization=None
         self.processor_class=processor_class
         self.processor_kwargs=processor_kwargs
         self.device = device
 
     @cached_property
     def model(self):
-        model=self.model_class.from_pretrained(self.model_name, cache_dir=self.cache_dir, **self.model_kwargs)
+        if self.quantization is not None:
+            model=self.model_class.from_pretrained(self.model_name, cache_dir=self.cache_dir, **self.model_kwargs,
+                                               quantization_config=self.quantization,)
+        else:
+            model = self.model_class.from_pretrained(self.model_name, cache_dir=self.cache_dir, **self.model_kwargs)
         return model
 
     @cached_property
@@ -263,8 +209,154 @@ class InterpretImage(CleanupMixin):
             output_text = self.processor.batch_decode(
                 generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False)
             outputs.append(output_text)
-            self.cleanup_cuda()
-
-        self.cleanup_model(self.model)
         return outputs
+
+    @staticmethod
+    def cleanup(self, model=False):
+        self.cleanup_cuda()
+        if model:
+            self.cleanup_model(self.model)
+
+class ExtractInfo(CleanupMixin):
+    def __init__(
+        self,
+        cache_dir,
+        model_name,
+        model_kwargs=None,
+        tokenizer_kwargs=None,
+        quantization_kwargs=None,
+        generation_kwargs=None,
+        model_class=AutoModelForCausalLM,
+        device="cuda",
+    ):
+        self.cache_dir = cache_dir
+        self.model_name = model_name
+        self.model_class = model_class
+        self.device = device
+
+        # defensive copies (avoid external mutation bugs)
+        self.model_kwargs = dict(model_kwargs or {})
+        self.tokenizer_kwargs = dict(tokenizer_kwargs or {})
+        self.generation_kwargs = dict(generation_kwargs or {})
+        self.quantization_kwargs = dict(quantization_kwargs or {})
+
+    @cached_property
+    def model(self):
+        if self.quantization_kwargs:
+            quantization_config = BitsAndBytesConfig(**self.quantization_kwargs)
+            # set attribute correctly (not dict-style)
+            quantization_config.bnb_4bit_compute_dtype = torch.bfloat16
+        else:
+            quantization_config = None
+
+        model = self.model_class.from_pretrained(
+            self.model_name,
+            cache_dir=self.cache_dir,
+            quantization_config=quantization_config,
+            **self.model_kwargs,
+        )
+
+        # only move manually if NOT quantized
+        if quantization_config is None:
+            model = model.to(self.device)
+
+        return model
+
+    @cached_property
+    def tokenizer(self):
+        tokenizer=AutoTokenizer.from_pretrained(self.model_name, self.cache_dir,
+                                                **self.tokenizer_kwargs)
+        return tokenizer
+
+    def generate_extraction_prompt(self, items_to_extract: dict):
+        description_text = []
+        format_text = []
+
+        for item, description in items_to_extract.items():
+            description_text.append(f"- {item}: {description}\n")
+            format_text.append(
+                f'{item}: [comma(,) separated list of each member of {item}],\n'
+            )
+
+        prompt = f"""
+For each of the texts that are provided extract the following information:
+
+{''.join(description_text)}
+
+For each of the items mentioned above your response should come in the following schema:
+{{
+{''.join(format_text)}
+}}
+
+Rules:
+- Do not invent or modify what you are looking for
+- Not every possible item will be in each text
+- There might be more than one item in each text include all of them
+- Always return json, no markdown, no comments, no additional formatting
+- If there is no information relating to a specific field return empty list and nothing else
+
+Text:
+"""
+        return prompt
+
+    @torch.inference_mode()
+    def extract_info(self, sys_prompt, items_to_extract: dict, texts: list):
+        prompt = self.generate_extraction_prompt(items_to_extract)
+        results = []
+
+        for text in texts:
+            if text is None:
+                results.append(None)
+                continue
+
+            messages = [
+                {
+                    "role": "system",
+                    "content": sys_prompt},
+                {
+                    "role": "user",
+                    "content": prompt + "\n" + text,
+                },
+            ]
+
+            inputs = self.tokenizer.apply_chat_template(
+                messages,
+                add_generation_prompt=True,
+                tokenize=True,
+                padding=True,
+                pad_to_multiple_of=8,
+                return_dict=True,
+                return_tensors="pt",
+            )
+
+            # move to device ONLY (no forced dtype)
+            inputs = inputs.to(self.device)
+
+            input_len = inputs["input_ids"].shape[-1]
+
+            generation = self.model.generate(
+                **inputs,
+                **self.generation_kwargs,  # no override
+            )
+
+            generation = generation[0][input_len:]
+            decoded = self.tokenizer.decode(generation, skip_special_tokens=True)
+
+            # optional: try parsing JSON (non-breaking)
+            try:
+                parsed = json.loads(decoded)
+            except Exception:
+                parsed = decoded  # fallback to raw string
+
+            results.append(parsed)
+        return results
+
+    @staticmethod
+    def cleanup(self, model=False):
+        self.cleanup_cuda()
+        if model:
+            self.cleanup_model(self.model)
+
+
+
 

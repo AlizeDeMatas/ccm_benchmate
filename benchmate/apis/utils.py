@@ -50,7 +50,7 @@ def api_call(func):
     return wrapper
 
 
-@dataclass
+@dataclass(slots=True)
 class ApiCall:
     """
     Stores metadata and results of an API call. This is to make it easier to track api calls for knowledge base construction.

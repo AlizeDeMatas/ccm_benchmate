@@ -256,7 +256,7 @@ class EBI:
         self.dbfetch = DbFetchClient()
         self.clients = {}
         for name, info in client_dict.items():
-            self.clients[name] = Client(info["base_url"], name, description=info["description"], email=email)
+            self.clients[name] = Client(info["url"], name, description=info["description"], email=email)
 
     @property
     def dbfetch_databses(self):

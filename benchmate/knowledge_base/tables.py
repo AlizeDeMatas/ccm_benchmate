@@ -50,20 +50,21 @@ class ApiCall(Base):
     )
 
 # Literature tables
-
 class Papers(Base):
     __tablename__ = 'papers'
     id = Column(Integer, primary_key=True, autoincrement=True)
     project_id = Column(Integer, ForeignKey('project.id'))
-    source_id = Column(String, nullable=False)
-    source=Column(String, nullable=False) #pubmed or arxiv
+    paper_id = Column(String, nullable=False) # This is the paperinfo.id
+    external_ids=Column(JSONB, nullable=False) #pubmed or arxiv
     title=Column(String, nullable=False)
-    pdf_url = Column(String, nullable=True)
-    pdf_path=Column(String, nullable=True)
     abstract=Column(Text, nullable=True)
     abstract_embeddings=Column(Vector(1024))
-    openalex_response=Column(JSONB, nullable=True)
+    download_links = Column(ARRAY(String, dimensions=1), nullable=True)
+    file_paths=Column(ARRAY(String, dimensions=1), nullable=True)
+    full_json=Column(JSONB, nullable=True)
     authors=Column(JSONB, nullable=True)
+    publication_date=Column(String, nullable=True)
+    venue=Column(String, nullable=True)
     full_text = Column(Text, nullable=False)
     full_text_ts_vector = Column(TSVector, Computed("to_tsvector('english', full_text)", ))
     abstract_ts_vector=Column(TSVector, Computed("to_tsvector('english', abstract)",
@@ -92,6 +93,7 @@ class Figures(Base):
 
 # This means that for searching images with other images, I will need to get all the jsons, there would need to be a some
 # sort of filtering to make things a bit more manageable
+# TODO image embeddings are not clip and colpali is for reranking so image embeddings need to be a vector
 class Tables(Base):
     __tablename__ = 'tables'
     id=Column(Integer, primary_key=True, autoincrement=True)

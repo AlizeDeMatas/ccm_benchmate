@@ -30,7 +30,7 @@ def _read(file):
         raise NotImplementedError("We can only read PDB or CIF files")
     return structure
 
-@dataclass
+@dataclass(slots=True)
 class StructureInfo:
     name: str
     atoms: biotite.structure.AtomArray

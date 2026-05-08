@@ -18,7 +18,7 @@ class NoSequenceError(Exception):
         super().__init__(message)
 
 
-@dataclass
+@dataclass(slots=True)
 class SequenceInfo:
     name: str
     sequence: str
