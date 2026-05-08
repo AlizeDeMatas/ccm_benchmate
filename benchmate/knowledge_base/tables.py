@@ -50,7 +50,6 @@ class ApiCall(Base):
     )
 
 # Literature tables
-#TODO fix
 class Papers(Base):
     __tablename__ = 'papers'
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -64,6 +63,8 @@ class Papers(Base):
     file_paths=Column(ARRAY(String, dimensions=1), nullable=True)
     full_json=Column(JSONB, nullable=True)
     authors=Column(JSONB, nullable=True)
+    publication_date=Column(String, nullable=True)
+    venue=Column(String, nullable=True)
     full_text = Column(Text, nullable=False)
     full_text_ts_vector = Column(TSVector, Computed("to_tsvector('english', full_text)", ))
     abstract_ts_vector=Column(TSVector, Computed("to_tsvector('english', abstract)",
