@@ -307,6 +307,7 @@ class GenomicRangesList:
 
        return coverage_dict
 
+    #TODO this could be a property
     def _calculate_coverage(self, ranges):
        """
        Helper method to calculate coverage for a list of ranges.
