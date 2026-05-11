@@ -248,8 +248,7 @@ class Paper:
                     main_paper_path=min(download_paths, key=lambda p: len(os.path.splitext(os.path.basename(p))[0]))
                 else:
                     main_paper_path=download_paths
-                self.info.downloaded=True
-                self.info.file_path=main_paper_path
+                self.info.file_paths=main_paper_path
                 return None
             elif link.endswith(".pdf"):
                 download = requests.get(link, stream=True)
@@ -259,17 +258,13 @@ class Paper:
                         with open("{}/{}.pdf".format(destination, self.info.id), "wb") as f:
                             f.write(download.content)
                         file_path=os.path.abspath(os.path.join("{}/{}.pdf".format(destination, self.info.id)))
-                        self.info.downloaded=True
-                        self.info.file_path=file_path
+                        self.info.file_paths=file_path
                         downloaded=True
                         break
                 except:
                     warnings.warn("Could not download the paper, from link {}".format(link))
                     continue
-        if downloaded:
-            self.info.downloaded=True
-        else:
-            self.info.downloaded=False
+        if not downloaded:
             warnings.warn(f"Could not download the paper, from any of the {len(self.info.download_links)} links")
 
     def get_references(self, openalex):

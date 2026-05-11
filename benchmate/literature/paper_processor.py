@@ -3,7 +3,6 @@ import os
 os.environ["TESSDATA_PREFIX"]=f"{os.environ['CONDA_PREFIX']}/share/tessdata"
 
 import torch
-import logging
 import pytesseract
 
 from benchmate.literature.paper_processor_utils import *
