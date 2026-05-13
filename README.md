@@ -15,7 +15,7 @@
 
 # CCM Benchmate package:
 
-This package aims to provide an integration setup for different biological from different sources and formats. There are
+This package aims to provide an integration setup for different biological information from different sources and formats. There are
  several modules that are designed to work together to allow researchers to combine data from public databases, papers 
 as well as their own data. 
 

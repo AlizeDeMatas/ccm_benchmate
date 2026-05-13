@@ -1,9 +1,8 @@
 import os
 import subprocess
 import io
-import gzip
 from dataclasses import dataclass
-from typing import List, Union, Tuple, Optional, BinaryIO
+from typing import List, Union, Tuple, Optional
 
 from sqlalchemy import select
 from sqlalchemy.exc import NoResultFound
@@ -13,13 +12,16 @@ from biotite.structure import distance, get_chains, alphabet, to_sequence
 from biotite.structure.io.pdb import PDBFile
 from biotite.structure.io.pdbx import CIFFile, get_structure
 
-from benchmate.utils.general_utils import compressed_stream_manager, decompressed_stream_manager
 from benchmate.structure.utils import *
 from benchmate.sequence.sequence import Sequence, SequenceList
 from benchmate.utils.general_utils import DataIntegrityError
 
+from sqlalchemy import select
+from sqlalchemy.exc import NoResultFound
+from benchmate.utils.general_utils import DataIntegrityError
 
 
+# this function takes in the file, makes sure it ends with pdb, returns the structure object 
 def _read(file):
     if file.endswith(".pdb"):
         structure = PDBFile.read(file).get_structure()[0]
@@ -30,63 +32,84 @@ def _read(file):
         raise NotImplementedError("We can only read PDB or CIF files")
     return structure
 
+
 @dataclass
 class StructureInfo:
     name: str
     atoms: biotite.structure.AtomArray
-    chains: List
+    chains: List[str]
     annotations: Optional[dict] = None
 
-    #TODO I need to figure out how to write pdb to stream and compress w/o i/o
     def to_kb(self, project):
         structure_table = project.kb.db_tables["structure"]
-        with compressed_stream_manager(self.atoms, self.biotite_pdb_transformer) as compressed_pdb:
-            row_data = {
-                "name": self.name,
-                'chains': self.chains,
-                "atoms": compressed_pdb,
-                "features": self.annotations
-            }
 
-            # 3. Execute the insert
-            stmt = structure_table().insert().values(**row_data).returning(structure_table.c.id)
-        return project.session.execute(stmt)
+        # 1. Convert AtomArray -> PDB text
+        pdb_file = PDBFile()
+        pdb_file.set_structure(self.atoms)
+        buf = io.StringIO()
+        pdb_file.write(buf)
+        pdb_text = buf.getvalue()
+
+        # after you build pdb_text as a str, convert to bytes 
+        pdb_bytes = pdb_text.encode("utf-8")
+
+        # 2. Build row data (atoms as TEXT) in a dictionary
+        row_data = {
+            "project_id": project.id,
+            "name": self.name,
+            "chains": self.chains,
+            "atoms": pdb_bytes,           # plain text, no gzip
+            "annotations": self.annotations,
+        }
+        # insert into structure table
+        stmt = structure_table.insert().values(**row_data).returning(structure_table.c.id)
+        result = project.session.execute(stmt)
+        project.session.commit()
+        return result.fetchone()[0]
 
     @classmethod
     def from_kb(cls, project, id):
         structure_table = project.kb.db_tables["structure"]
         stmt = select(structure_table).where(structure_table.c.id == id)
 
-        results = project.kb.session().execute(stmt).fetchall()
+        results = project.kb.session.execute(stmt).fetchall()
 
         if len(results) == 0:
-            raise NoResultFound("Could not find a molecule with id {}".format(id))
-
+            raise NoResultFound(f"Could not find a molecule with id {id}")
         if len(results) > 1:
-            raise DataIntegrityError("Found more than one molecule with id {}".format(id))
+            raise DataIntegrityError(f"Found more than one molecule with id {id}")
 
-        with gzip.GzipFile(fileobj=io.BytesIO(results[0][2]), mode='rb') as gz:
-            with io.TextIOWrapper(gz, encoding='utf-8') as text_wrapper:
-                pdb_file = PDBFile.read(text_wrapper)
-                atom_array = pdb_file.get_structure(model=1)
+        # the first row 
+        row = results[0]._mapping
 
-        return cls(name=results[0][0], atoms=atom_array,
-                   chains=results[0][1], annotations=results[0][3])
+        name = row["name"]
+        chains = row["chains"]
 
-    def biotite_pdb_transformer(self, binary_stream):
-        # We wrap the binary stream in text mode ONLY when needed
-        with io.TextIOWrapper(binary_stream, encoding='utf-8', write_through=True) as text_wrapper:
-            pdb_file = PDBFile()
-            pdb_file.set_structure(self.atoms)
-            pdb_file.write(text_wrapper)
-
-    def biotite_pdb_reconstructor(self, binary_stream: BinaryIO):
-        # Wrap in text mode for the PDB parser
-        with io.TextIOWrapper(binary_stream, encoding='utf-8') as text_wrapper:
-            pdb_file = PDBFile.read(text_wrapper)
-            return pdb_file.get_structure(model=1)
+        # pdb pay load from the to_kb 
+        atoms_blob = row["atoms"]
+        annotations = row["annotations"]
 
 
+        # ran into attribute errors, memoryview to bytes , if bytes decode to utf- 8, crash if anything else
+        if isinstance(atoms_blob, memoryview):
+            atoms_blob = atoms_blob.tobytes()
+        elif isinstance(atoms_blob, str):
+            atoms_text = atoms_blob
+        elif isinstance(atoms_blob, bytes):
+            atoms_text = atoms_blob.decode("utf-8")
+        else:
+            raise TypeError(f"Unexpected atoms type: {type(atoms_blob)}")
+
+        if not isinstance(atoms_blob, str):
+            atoms_text = atoms_blob.decode("utf-8")
+
+        # rebuild biotite struct
+        buf = io.StringIO(atoms_text)
+        pdb_file = PDBFile.read(buf)
+        atom_array = pdb_file.get_structure(model=1)
+
+        # construct the structureInfo instance
+        return cls(name=name, atoms=atom_array, chains=chains, annotations=annotations)
 class Structure:
     def __init__(self, name, atoms, annotations:dict=None):
         """
@@ -256,7 +279,8 @@ class Structure:
         if file is None and id is None:
             raise ValueError("You must provide a file or an id as well as a source and destination")
 
-        atoms=structure.get_structure()
+         # structure is already a Biotite AtomArray, so just pass it through
+        atoms = structure
         return cls(name, atoms)
 
     @classmethod

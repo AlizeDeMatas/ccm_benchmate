@@ -1,5 +1,4 @@
 *.gz
-*.ipynb
 *.ipynb_checkpoints
 *.json
 *.sif
