@@ -110,8 +110,8 @@ class Structure:
             f1 = os.path.join(tmpdir, f"{self.name}.pdb")
             f2 = os.path.join(tmpdir, f"{other.name}.pdb")
 
-            structio.save_structure(f1, self.info.atoms)
-            structio.save_structure(f2, other.info.atoms)
+            self.write(f1)
+            other.write(f2)
 
 
             command = ["mustang", "-i", f1, f2, "-o", os.path.join(tmpdir, "results")]
@@ -176,8 +176,8 @@ class Structure:
             f1 = os.path.join(tmpdir, f"{self.name}.pdb")
             f2 = os.path.join(tmpdir, f"{other.name}.pdb")
 
-            structio.save_structure(f1, self.info.atoms)
-            structio.save_structure(f2, other.info.atoms)
+            self.write(f1)
+            other.write(f2)
 
             cmd = ["USalign", f1, f2, "-outfmt", "0"]
             run = subprocess.run(cmd, capture_output=True, text=True)
