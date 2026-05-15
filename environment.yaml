@@ -7,6 +7,7 @@ dependencies:
   - tesseract=5.3.1
   - cuda-toolkit
   - mmseqs2
+  - fpocket
   - foldseek
   - folddisco
   - clustalo

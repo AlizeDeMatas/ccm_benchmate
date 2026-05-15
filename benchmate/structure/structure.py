@@ -1,7 +1,7 @@
 import os
 import subprocess
 import io
-import gzip
+import tempfile
 from dataclasses import dataclass
 from typing import List, Union, Tuple, Optional, BinaryIO
 
@@ -12,6 +12,7 @@ import biotite
 from biotite.structure import distance, get_chains, alphabet, to_sequence
 from biotite.structure.io.pdb import PDBFile
 from biotite.structure.io.pdbx import CIFFile, get_structure
+import biotite.structure.io as structio
 
 from benchmate.utils.general_utils import compressed_stream_manager, decompressed_stream_manager
 from benchmate.structure.utils import *
@@ -65,13 +66,9 @@ class StructureInfo:
         if len(results) > 1:
             raise DataIntegrityError("Found more than one molecule with id {}".format(id))
 
-        with gzip.GzipFile(fileobj=io.BytesIO(results[0][2]), mode='rb') as gz:
-            with io.TextIOWrapper(gz, encoding='utf-8') as text_wrapper:
-                pdb_file = PDBFile.read(text_wrapper)
-                atom_array = pdb_file.get_structure(model=1)
-
-        return cls(name=results[0][0], atoms=atom_array,
-                   chains=results[0][1], annotations=results[0][3])
+        with decompressed_stream_manager(results[0][2], cls.biotite_pdb_reconstructor()) as atom_array:
+            return cls(name=results[0][0], atoms=atom_array,
+                       chains=results[0][1], annotations=results[0][3])
 
     def biotite_pdb_transformer(self, binary_stream):
         # We wrap the binary stream in text mode ONLY when needed
@@ -80,7 +77,9 @@ class StructureInfo:
             pdb_file.set_structure(self.atoms)
             pdb_file.write(text_wrapper)
 
-    def biotite_pdb_reconstructor(self, binary_stream: BinaryIO):
+
+    @staticmethod
+    def biotite_pdb_reconstructor(binary_stream: BinaryIO):
         # Wrap in text mode for the PDB parser
         with io.TextIOWrapper(binary_stream, encoding='utf-8') as text_wrapper:
             pdb_file = PDBFile.read(text_wrapper)
@@ -91,36 +90,37 @@ class Structure:
     def __init__(self, name, atoms, annotations:dict=None):
         """
         :param name: name
-        :param file: pdb or cif file
-        :param id: id can be none if file is none and id is not we will download from source
-        :param source: where to get the pdb from
-        :param destination: where to download it, these are passed to structure.utils.download
+        :param atoms: a biotite.AtomArray
+        :param annotations: a dict with annotations
         """
         chains = get_chains(atoms)
+        self.name=name
         self.info=StructureInfo(name, atoms, chains, annotations)
 
-    #TODO parse these
-    def align(self, other, destination):
+    def align(self, other):
         """
-        align 2 structures (they must have a file) using mustang
+        align 2 structures using mustang
         :param other:  other structure
         :param destination: where to save the output
-        :return: result of the file, html output for alignment and rotation
+        :return: aligned structure as a Structure class and other supplementary file paths
         """
-        file1=self.write(destination + "structure1.pdb")
-        file2=other.write(destination + "structure2.pdb")
+        assert(isinstance(other, Structure))
 
-        command = ["mustang", "-i", os.path.abspath(file1), os.path.abspath(file2), "-o",
-                   os.path.abspath(destination), "-r", "ON"]
+        with tempfile.TemporaryDirectory() as tmpdir:
+            f1 = os.path.join(tmpdir, f"{self.name}.pdb")
+            f2 = os.path.join(tmpdir, f"{other.name}.pdb")
 
-        process = subprocess.run(command)
-        if process.returncode != 0:
-            raise ValueError("There was an error aligning structures. See error below \n {}".format(process.stderr))
+            structio.save_structure(f1, self.info.atoms)
+            structio.save_structure(f2, other.info.atoms)
 
-        aligned_pdb = os.path.abspath(destination + "results.pdb")
-        rotation_file = os.path.abspath(destination + "results.rms_rot")
-        html_report = os.path.abspath(destination + "results.html")
-        return aligned_pdb, rotation_file, html_report
+
+            command = ["mustang", "-i", f1, f2, "-o", os.path.join(tmpdir, "results")]
+            process = subprocess.run(command)
+            print(os.listdir(tmpdir))
+            if process.returncode != 0:
+                raise ValueError("There was an error aligning structures. See error below \n {}".format(process.stderr))
+            aligned_s = Structure.from_file(f"{self.name}_{other.name}_aligned", os.path.join(tmpdir, "results.pdb"))
+            return aligned_s
 
     def find_pockets(self, **kwargs):
         """
@@ -128,23 +128,29 @@ class Structure:
         Returns (pocket_files, pocket_coords)
         """
         cmd_params = " ".join([f"--{k} {v}" for k, v in kwargs.items()])
-        command = f"fpocket -f {self.file} -x -d {cmd_params}"
-        run = subprocess.run(command, shell=True, capture_output=True, text=True)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            f1 = os.path.join(tmpdir, f"{self.name}.pdb")
+            self.write(f1)
 
-        if run.returncode != 0:
-            raise RuntimeError(run.stderr)
+            command = f"fpocket -f {f1} -x -d {cmd_params}"
+            run = subprocess.run(command, shell=True, capture_output=True, text=True)
 
-        results_dir = self.file.replace(".pdb", "_out")
-        pocket_files = [f for f in os.listdir(results_dir) if f.endswith(".pdb")]
-        pocket_coords = [get_pocket_dimensions(os.path.join(results_dir, f)) for f in pocket_files]
+            if run.returncode != 0:
+                raise RuntimeError(run.stderr)
+            pocket_files = [f for f in os.listdir(os.path.join(tmpdir, f"{self.name}_out")) if f.endswith(".pdb") and "env" not in f]
+            pockets=[]
 
-        return pocket_files, pocket_coords
+            for file in pocket_files:
+                s=Structure.from_file(name=f"{self.name}_{file}", file=os.path.join(tmpdir,f"{self.name}_out", file))
+                pockets.append(s)
+
+            return pockets
 
     def to_3di(self, chain):
         "for a chain convert the structure to 3di"
-        chain=self._get_chain(chain)
-        seq, _ = str(alphabet.to_3di(chain)[0])
-        return Sequence(name=self.info.name + "_" + chain.chain_id, sequence=seq, seq_type="3di")
+        atoms=self._get_chain(chain)
+        seq = str(alphabet.to_3di(atoms)[0][0])
+        return Sequence(name=self.info.name + "_" + chain, sequence=seq, seq_type="3di")
 
     def sequence(self):
         "extract the aa sequence from the pdb, if there are gap there will be - if there are uknown aa there will be an X"
@@ -166,20 +172,29 @@ class Structure:
         :return: retun the tm score
         """
         assert(isinstance(other, Structure))
-        cmd = ["USalign", self.file, other.file, "-outfmt", "2"]
-        run = subprocess.run(cmd, capture_output=True, text=True)
-        if run.returncode != 0:
-            raise RuntimeError(run.stderr)
-        for line in run.stdout.splitlines():
-            if "TM-score=" in line:
-                return float(line.split("=")[1].split()[0])
-        return None
+        with tempfile.TemporaryDirectory() as tmpdir:
+            f1 = os.path.join(tmpdir, f"{self.name}.pdb")
+            f2 = os.path.join(tmpdir, f"{other.name}.pdb")
+
+            structio.save_structure(f1, self.info.atoms)
+            structio.save_structure(f2, other.info.atoms)
+
+            cmd = ["USalign", f1, f2, "-outfmt", "0"]
+            run = subprocess.run(cmd, capture_output=True, text=True)
+            if run.returncode != 0:
+                raise RuntimeError(run.stderr)
+            for line in run.stdout.splitlines():
+                if "TM-score=" in line:
+                    return float(line.split("=")[1].split()[0])
+            return None
 
     def _get_chain(self, chain_id):
-        return self.structure[self.structure.chain_id == chain_id]
+        return self.info.atoms[self.info.atoms.chain_id == chain_id]
 
     def write(self, fpath):
-        PDBFile.write(self.file, fpath)
+        file=PDBFile()
+        file.set_structure(self.info.atoms)
+        file.write(fpath)
 
     def contacts(self, chain_id1, chain_id2, cutoff=5.0, level="atom", measure="any"):
         """
@@ -215,10 +230,10 @@ class Structure:
         return contacts
 
     def __repr__(self):
-        return "Structure(name={}, pdb={}, chains={})".format(self.info.name, self.info.file, ",".join(self.chains))
+        return "Structure(name={}, chains={})".format(self.info.name, ",".join(self.info.chains))
 
     def __str__(self):
-        return self.file
+        return self.name
 
     def __getitem__(self, key: Union[str, int, slice, Tuple[str, Union[int, str]]]):
         """
@@ -231,10 +246,10 @@ class Structure:
         if isinstance(key, str):
             return self._get_chain(key)
         if isinstance(key, int):
-            chain_id = self.chains[key]
+            chain_id = self.info.chains[key]
             return self._get_chain(chain_id)
         if isinstance(key, slice):
-            sel = self.chains[key]
+            sel = self.info.chains[key]
             return [self._get_chain(ch) for ch in sel]
         if isinstance(key, tuple) and len(key) == 2:
             chain_id, resid = key
@@ -246,7 +261,9 @@ class Structure:
     @classmethod
     def from_file(cls, name, file, source=None, destination=None, id=None):
         if file is not None:
-            file = os.path.abspath(file)
+            if not os.path.exists(file):
+                raise FileNotFoundError(f"File not found: {file}")
+
             structure=_read(file)
 
         if file is None and id is not None:
@@ -256,8 +273,7 @@ class Structure:
         if file is None and id is None:
             raise ValueError("You must provide a file or an id as well as a source and destination")
 
-        atoms=structure.get_structure()
-        return cls(name, atoms)
+        return cls(name, structure)
 
     @classmethod
     def from_kb(cls, project, id):
