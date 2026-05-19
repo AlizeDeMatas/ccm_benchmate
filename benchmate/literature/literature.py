@@ -1,75 +1,76 @@
+from dataclasses import dataclass
 import os.path
 import time
 import tempfile
+from time import sleep
+from math import ceil
+import warnings
 
 from bs4 import BeautifulSoup as bs
+import pandas as pd
 
 from benchmate.literature.utils import *
 from benchmate.literature.paperinfo import PaperInfo
+from benchmate.utils.general_utils import warn_for_status
 
 class NoPapersError(Exception):
     pass
 
-def paper_from_response(openalex_response):
-    """
-    generate a paper object from an openalex response
-    :param openalex_response: openalex response json
-    :return: a paper object
-    """
-    if "pmid" in openalex_response["ids"].keys():
-        paper_id=openalex_response["ids"]["pmid"].split("/").pop()
-        id_type="pubmed"
-    else:
-        raise ValueError("Could not find a valid paper ID in the response.")
-
-    paper=Paper(paper_id=paper_id, id_type=id_type, get_abstract=True)
-    paper.info.openalex_info = filter_openalex_response(openalex_response)
-    if "best_oa_location" in openalex_response.keys() and openalex_response["best_oa_location"] is not None:
-        link = openalex_response["best_oa_location"]["pdf_url"]
-        if link is not None and link.endswith(".pdf"):
-            download_link = openalex_response["best_oa_location"]["pdf_url"]
-        else:
-            warnings.warn("Did not find a direct pdf download link")
-            download_link = None
-    else:
-        warnings.warn("There is no place to download the paper, this paper might not be open access")
-        download_link = None
-    paper.info.download_link = download_link
+def paper_from_response(response, get_references=False,
+                        get_related_papers=False, get_cited_by=False):
+    paper_id=response["id"].split("/")[-1]
+    paper=Paper(paper_id=paper_id)
+    paper.info.full_json=response
+    paper.parse_json()
+    if get_references:
+        paper.get_references()
+    if get_related_papers:
+        paper.get_related_works()
+    if get_cited_by:
+        paper.get_cited_by()
     return paper
 
 
-def paper_from_link(link):
+def paper_from_link(link, openalex,get_references=False,
+                        get_related_papers=False, get_cited_by=False):
     """
     generate a paper object from an openalex link, this is useful for references and related works
     :param link: openalex link
     :return: a paper object
     """
     openalex_id=link.split("/").pop()
-    info=search_openalex(paper_id=openalex_id, id_type="openalex")
-    paper=paper_from_response(info)
+    paper=Paper(paper_id=openalex_id)
+    paper.get_json(openalex)
+    paper.parse_json()
+    if get_references:
+        paper.get_references()
+    if get_related_papers:
+        paper.get_related_works()
+    if get_cited_by:
+        paper.get_cited_by()
     return paper
 
+@dataclass
+class OpenAlex:
+    api_key: str
+    paper_url: str = "https://api.openalex.org/works"
+
+
 class LitSearch:
-    def __init__(self, pubmed_api_key=None, email=None, sort_by="relevance"):
+    def __init__(self):
         """
         create the ncessary framework for searching
         :param email: email to use for pubmed api
         :param sort_by: relevance or pub+date
         :param pubmed_api_key:
         """
-        self.pubmed_key = pubmed_api_key
-        self.email=email
-        if sort_by not in ["relevance", "pub+date"]:
-            raise ValueError("sort_by must be relevance or pub+date")
-        self.sorting=sort_by
-        self.params={
-            "retmode": "xml",
-            "email": self.email,
-            "api_key": self.pubmed_key,
-            "sort": self.sorting,
-        }
 
-    def search(self, query, database="pubmed", results="id", max_results=1000):
+        self.sort_fields=["relevance", "cited_by_count", "publication_date"]
+        self.return_fields=["title", "abstract", "doi", "publication_date", "venue"]
+
+
+    def search(self, openalex, query, fields=["title", "abstract", "doi", "publication_date", "venue"],
+               sort_by="relevance", max_results=10000):
         """
         search pubmed and arxiv for a query, this is just keyword search no other params are implemented at the moment
         :param query: this is a string that is passed to the search, as long as it is a valid query it will work and other fields can be specified
@@ -78,224 +79,231 @@ class LitSearch:
         :param max_results: max number of results to return default 1000
         :return: paper ids specific to the database
         """
-        if database == "pubmed":
-            search_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term={}&retmax={}".format(query, max_results)
-            search_response = requests.get(search_url, params=self.params)
-            search_response.raise_for_status()
 
-            soup = bs(search_response.text, "xml")
-            ids = [item.text for item in soup.find_all("Id")]
+        if sort_by not in self.sort_fields:
+            raise NotImplementedError(f"Only {','.join(self.sort_fields)} are supported")
 
-            if results == "doi":
-                dois = []
-                for paperid in ids:
-                    response = requests.get(
-                        "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id={}".format(paperid))
-                    response.raise_for_status()
-                    soup = bs(response.text, "xml")
-                    dois.append([item.text for item in soup.find_all("ArticleId") if item.attrs["IdType"] == "doi"])
-                to_ret=dois
+        new_fields=[]
+        to_ret=[]
+        for field in fields:
+            if field not in self.return_fields:
+                warnings.warn(f"{field} is not a valid field and will be ignored")
+            elif field=="abstract":
+                new_fields.append(field)
+                to_ret.append("abstract_inverted_index")
+            elif field=="venue":
+                new_fields.append(field)
+                to_ret.append("primary_location")
             else:
-                to_ret=ids
+                new_fields.append(field)
+                to_ret.append(field)
 
-        elif database == "arxiv":
-            search_url="http://export.arxiv.org/api/search_query?{}&max_results={}".format(query, str(max_results))
-            search_response = requests.get(search_url)
-            search_response.raise_for_status()
-            soup = bs(search_response.text, "xml")
-            ids=[item.text.split("/").pop() for item in soup.find_all("id")][1:] #first one is the search id
-            to_ret= ids
-        return to_ret
+        if sort_by=="relevance":
+            sort="relevance_score"
+        elif sort_by=="publication_date":
+            sort="publication_date"
+        elif sort_by=="cited_by_count":
+            sort="cited_by_count"
 
+        to_ret.append("id")
+        to_ret.append(sort)
+        to_ret=list(set(to_ret))
+
+        params={
+            "search":query,
+            "select":",".join(to_ret),
+            "sort":sort+":desc",
+            "per_page":200,
+            "api_key":openalex.api_key
+        }
+
+        headers = {
+            'Accept': 'application/json'
+        }
+
+        results=requests.get(openalex.paper_url, params=params, headers=headers)
+        warn_for_status(results, "Problem getting search results")
+        response=results.json()
+
+        meta=response["meta"]
+        hits=meta["count"]
+        if hits>max_results:
+            pages=ceil(max_results/200)
+        else:
+            pages=ceil(hits/200)
+
+        papers=response["results"]
+        for i in range(1, pages):
+            params["page"]=i
+            results = requests.get(openalex.paper_url, params=params, headers=headers)
+            results.raise_for_status()
+            papers.extend(results.json()["results"])
+            if i > 100:
+                sleep(1)
+
+        new_fields.append("id")
+        for_df={}
+        for item in new_fields:
+            if item=="id":
+                ids=[paper["id"].split("/").pop() for paper in papers]
+                for_df[item]=ids
+            elif item=="title":
+                titles=[paper["title"] for paper in papers]
+                for_df[item]=titles
+            elif item=="abstract":
+                abstracts=[reconstruct_abstract(paper["abstract_inverted_index"]) for paper in papers]
+                for_df[item]=abstracts
+            elif item=="doi":
+                dois=[paper["doi"] for paper in papers]
+                for_df[item]=dois
+            elif item=="is_oa":
+                is_oa=[paper["is_oa"] for paper in papers]
+                for_df[item]=is_oa
+            elif item=="venue":
+                venues=[paper["primary_location"]["raw_source_name"] for paper in papers]
+                for_df[item]=venues
+
+        df=pd.DataFrame(for_df)
+        return df
 
 
 class Paper:
-    def __init__(self, paper_id, id_type="pubmed", get_abstract=True):
+    def __init__(self, paper_id):
         """
         This class is used to download and process a paper from a given id, it can also be used to process a paper from a file
-        :param paper_id:
-        :param id_type: pubmed or arxiv
-        :param filepath: if you already have the pdf file you can pass it here, mutually exclusive with paper_id
-        :param citations: if you want to get the citations for the paper, need paper id, cannot do it with pdf
-        :param references: if you want to get the references for the paper, need paper id, cannot do it with pdf
-        :param related_works: if you want to get the related works for the paper, need paper id, cannot do it with pdf
+        :param paper_id: openalex id of the paper
         """
-        self.info=PaperInfo(paper_id, id_type)
-        if get_abstract:
-            self.info.abstract, self.info.title, self.info.authors= self.get_abstract()
+        self.info=PaperInfo(id=paper_id)
 
+    def get_json(self, openalex):
+        params={
+            "api_key": openalex.api_key
+        }
 
-    #I was wrong, you can have a paper with no authors apparently
-    def get_abstract(self):
-        """
-        get the abstract of the paper from pubmed or arxiv
-        :return: fill in the paper info abstract, title, authors
-        """
-        if self.info.id_type =="pubmed":
-            response=requests.get("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id={}".format(self.info.id))
-            response.raise_for_status()
-            soup=bs(response.text, "xml")
-            abstract_text=soup.find("AbstractText")
-            if abstract_text is not None:
-                abstract_text=abstract_text.text
-            else:
-                abstract_text=None
-            title=soup.find("ArticleTitle").text
-            author_tags=soup.find_all("Author")
-            if len(author_tags) > 0:
-                authors=[]
-                for author in author_tags:
-                    affiliation_info=author.find("AffiliationInfo")
-                    if affiliation_info is not None:
-                        if len(affiliation_info.find_all("Affiliation"))>0:
-                            authors.append({"name":(author.find("ForeName").text + ", " + author.find("LastName").text),
-                                        "affiliation":(author.find("AffiliationInfo").find("Affiliation").text)})
-                        else:
-                            authors.append({"name": (author.find("ForeName").text + ", " + author.find("LastName").text),
-                                            "affiliation": None})
-            else:
-                authors=None
-            article_id_list=soup.find("ArticleIdList")
-            if article_id_list is not None:
-                pmc_tag=article_id_list.find("ArticleId", IdType="pmc")
-                if pmc_tag is not None:
-                    pmc_tag=pmc_tag.text
-            else:
-                pmc_tag=None
-            self.info.pmc_id=pmc_tag
+        headers = {
+            'Accept': 'application/json'
+        }
+        paper_url=f"{openalex.paper_url}/{self.info.id}"
+        info=requests.get(paper_url, headers=headers, params=params)
+        info.raise_for_status()
+        info=info.json()
+        self.info.full_json=info
 
+    def parse_json(self):
+        self.info.title=self.info.full_json["title"]
+        self.info.abstract=reconstruct_abstract(self.info.full_json["abstract_inverted_index"])
+        self.info.external_ids=self.info.full_json["ids"]
+        self.info.publication_date=self.info.full_json["publication_date"] if "publication_date" in self.info.full_json.keys() else None
+        self.info.venue=self.info.full_json["primary_location"]["raw_source_name"] if "primary_location" in self.info.full_json.keys() else None
+        self.info.download_links=[]
 
-        elif self.info.id_type == "arxiv":
-            response = requests.get("http://export.arxiv.org/api/query?search_query=id:{}".format(self.info.id))
-            response.raise_for_status()
-            soup=bs(response.text, "xml")
-            abstract_text = soup.find("summary").text
-            #not ideal if arxiv changes things, this will break
-            title=soup.find_all("title")
-            if len(title)==2:
-                title=title[1].text
-            else:
-                title=None
-            author_tags = soup.find_all("author")
-            authors = []
-            if len(author_tags)>0:
-                for author in author_tags:
-                    authors.append({"name": author.find("name").text,
-                                    "affiliation": None})
-            else:
-                authors=None
-
-        else:
-            raise NotImplementedError("source must be pubmed or arxiv other sources are not implemented")
-
-        return abstract_text, title, authors
-
-    def search_info(self, filter_openalex=False):
-        """
-        Check if pmc id is available, if so build download link from that
-        search openalex for the paper info and download link
-        :return: fill in the paper info openalex_info and download_link
-        """
-        if self.info.pmc_id is not None:
-            response = requests.get("https://www.ncbi.nlm.nih.gov/pmc/utils/oa/oa.fcgi?id={}".format(self.info.pmc_id))
-            response.raise_for_status()
-            soup=bs(response.text, "xml")
-            check_error = soup.find("error")
-            if check_error is not None:
-                warnings.warn("There is no place to download the paper, this paper might not be open access")
-                download_link = None
-            else:
-                pmc_link = soup.find("link", format="tgz")["href"]
-                if pmc_link is not None:
-                    download_link = pmc_link.replace("ftp://", "https://", 1)
-
-        openalex_info = search_openalex(id_type=self.info.id_type, paper_id=self.info.id, filter=filter_openalex)
-
-        if download_link is None:
-            if openalex_info is None:
-                warnings.warn("Could not find a paper with id {}".format(self.info.id))
-
-            else:
-                if "best_oa_location" in openalex_info.keys() and openalex_info[
-                    "best_oa_location"] is not None:
-                    link = openalex_info["best_oa_location"]["pdf_url"]
-                    if link is not None and link.endswith(".pdf"):
-                        download_link = openalex_info["best_oa_location"]["pdf_url"]
+        if self.info.full_json["open_access"]["is_oa"]:
+            if self.info.full_json["has_content"]["pdf"]:
+                self.info.download_links.append(self.info.full_json["content_urls"]["pdf"])
+            if self.info.full_json["locations_count"] > 0:
+                for i in range(self.info.full_json["locations_count"]):
+                    loc = self.info.full_json["locations"][i]
+                    if loc["pdf_url"] is not None:
+                        self.info.download_links.append(loc["pdf_url"])
                     else:
-                        warnings.warn("Did not find a direct pdf download link")
-                        download_link = None
-                else:
-                    warnings.warn("There is no place to download the paper, this paper might not be open access")
-                    download_link = None
+                        if loc["landing_page_url"] and "pmc" in loc["landing_page_url"]:
+                            pmc_id = loc["landing_page_url"].split("/")[-1]
+                            response = requests.get(
+                                "https://www.ncbi.nlm.nih.gov/pmc/utils/oa/oa.fcgi?id={}".format(pmc_id))
+                            response.raise_for_status()
+                            soup = bs(response.text, "xml")
+                            check_error = soup.find("error")
+                            if check_error is not None:
+                                continue
+                            else:
+                                pdf_link = soup.find("link", format="pdf")
+                                if pdf_link is not None:  # this will need to be revisited after s3 transition is complete
+                                    download_link = pdf_link["href"].replace("ftp://", "https://", 1)
+                                    download_link = download_link.replace("nlm.nih.gov/pub/pmc/",
+                                                                          "nlm.nih.gov/pub/pmc/deprecated/", 1)
+                                    self.info.download_links.append(download_link)
 
-        self.info.openalex_info=openalex_info
-        self.info.download_link=download_link
-        return None
+                                tar_link = soup.find("link", format="tgz")
+                                if tar_link is not None:
+                                    download_link = tar_link["href"].replace("ftp://", "https://", 1)
+                                    download_link = download_link.replace("nlm.nih.gov/pub/pmc/",
+                                                                          "nlm.nih.gov/pub/pmc/deprecated/", 1)
+                                    self.info.download_links.append(download_link)
 
+    #TODO need to check if downloaded if so don't go throught the rest of the list
     def download(self, destination):
         """
         download the paper pdf to the destination folder
         :param destination: where to download the paper, it must exist, the folder will not be created or checked for existence
         :return: download the paper pdf to the destination folder
         """
-        if self.info.download_link.endswith(".tar.gz"):
-            tmp_file=tempfile.NamedTemporaryFile(suffix=".tar.gz")
-            download_tar(self.info.download_link, tmp_file.name) # downloads into tempfile location
-            download_paths=extract_pdfs_from_tar(tmp_file.name, destination) # extracts pdf into destination location
+        downloaded=False
+        for link in self.info.download_links:
+            if link.endswith(".tar.gz"):
+                tmp_file=tempfile.NamedTemporaryFile(suffix=".tar.gz")
+                download_tar(link, tmp_file.name) # downloads into tempfile location
+                download_paths=extract_pdfs_from_tar(tmp_file.name, destination, self.info.id)
 
-            if len(download_paths) > 1:
-                main_paper_path=min(download_paths, key=lambda p: len(os.path.splitext(os.path.basename(p))[0]))
-            else:
-                main_paper_path=download_paths
+                if len(download_paths) > 1:
+                    main_paper_path=min(download_paths, key=lambda p: len(os.path.splitext(os.path.basename(p))[0]))
+                else:
+                    main_paper_path=download_paths
+                self.info.downloaded=True
+                self.info.file_path=main_paper_path
+                return None
+            elif link.endswith(".pdf"):
+                download = requests.get(link, stream=True)
+                try:
+                    download.raise_for_status()
+                    if download.headers.get("Content-Type", "").lower() == "application/pdf":
+                        with open("{}/{}.pdf".format(destination, self.info.id), "wb") as f:
+                            f.write(download.content)
+                        file_path=os.path.abspath(os.path.join("{}/{}.pdf".format(destination, self.info.id)))
+                        self.info.downloaded=True
+                        self.info.file_path=file_path
+                        downloaded=True
+                        break
+                except:
+                    warnings.warn("Could not download the paper, from link {}".format(link))
+                    continue
+        if downloaded:
             self.info.downloaded=True
-            self.info.file_path=main_paper_path
-            return None
-
-        download = requests.get(self.info.download_link, stream=True)
-        download.raise_for_status()
-        if download.headers.get("Content-Type", "").lower() == "application/pdf":
-            with open("{}/{}.pdf".format(destination, self.info.id), "wb") as f:
-                f.write(download.content)
-            file_path=os.path.abspath(os.path.join("{}/{}.pdf".format(destination, self.info.id)))
-            self.info.downloaded=True
-            self.info.file_path=file_path
         else:
-            warnings.warn("Could not download the paper, this paper might not be open access or the link might not point to a pdf file")
-        return None
+            self.info.downloaded=False
+            warnings.warn(f"Could not download the paper, from any of the {len(self.info.download_links)} links")
 
-
-    def get_references(self):
+    def get_references(self, openalex):
         """
         get the references of the paper from openalex
         :return: fill in the paper info references
         """
-        if "referenced_works" not in self.info.openalex_info.keys():
+        if "referenced_works" not in self.info.full_json.keys():
             raise ValueError("The response does not contain references.")
-        references=self.info.openalex_info["referenced_works"]
+        references=self.info.full_json["referenced_works"]
         papers=[]
         for reference in references:
             try:
-                p=paper_from_link(reference)
+                p=paper_from_link(reference, openalex)
                 papers.append(p)
-                time.sleep(0.3)
+                time.sleep(0.1)
             except:
                 print("Could not find a paper with id {}".format(reference.split("/").pop()))
 
         self.info.references=papers
         return None
 
-    def get_related_works(self):
+    def get_related_works(self, openalex):
         """
         get the related works of the paper from openalex
         :return: fill in the paper info related_works
         """
-        if "related_works" not in self.info.openalex_info.keys():
+        if "related_works" not in self.info.full_json.keys():
             raise ValueError("The response does not contain related works.")
-        references = self.info.openalex_info["related_works"]
+        references = self.info.full_json["related_works"]
         papers = []
         for reference in references:
             try:
-                p = paper_from_link(reference)
+                p = paper_from_link(reference, openalex)
                 papers.append(p)
                 time.sleep(0.3)
             except:
@@ -303,47 +311,61 @@ class Paper:
         self.info.related_works=papers
         return None
 
-    def get_cited_by(self, cursor="*"):
+    def get_cited_by(self, openalex):
         """
         get the papers that cite this paper from openalex
         :param cursor: the used does not need to worry about this, it is used for pagination and recursive calls
         :return: fill in the paper info cited_by
         """
-        if "cited_by_api_url" not in self.info.openalex_info.keys():
-            raise ValueError("The response does not contain cited by information.")
-        url = self.info.openalex_info["cited_by_api_url"] + "&cursor="
-        content = requests.get(url + cursor).content.decode().strip()
-        content = json.loads(content)
-        next_cursor = content["meta"]["next_cursor"]
-        papers = []
-        if len(content["results"]) > 0:
-            for item in content["results"]:
-                try:
-                    p = paper_from_response(item)
-                    papers.append(p)
-                    time.sleep(0.3)
-                except:
-                    print("Could not find a paper with id {}".format(item["ids"]["pmid"].split("/").pop()))
-                finally:
-                    cursor=next_cursor
-            while next_cursor != cursor and next_cursor is not None:
-                self.get_cited_by(next_cursor)
-            self.info.cited_by=papers
+        params={
+            "filter":f"cites:{self.info.id}",
+            "per_page":200,
+            "api_key":openalex.api_key
+        }
+
+        headers = {
+            'Accept': 'application/json'
+        }
+
+        content = requests.get(openalex.paper_url, params=params, headers=headers).json()
+        meta=content["meta"]
+        cited_by=content["results"]
+
+        if meta["count"] > 10000:
+            total=10000
         else:
-            warnings.warn("No papers found that cite this work")
-            self.info.cited_by=[]
-        return None
+            total=meta["count"]
+
+        pages=ceil(total/200)
+
+        if pages>1 and len(cited_by)>0:
+            for i in range(1, pages):
+                params = {
+                    "filter": f"cites:{self.info.id}",
+                    "per_page": 200,
+                    "api_key": openalex.api_key,
+                    "page": i
+                }
+                results=requests.get(openalex.paper_url, params=params, headers=headers).json()
+                cited_by.extend(results["results"])
+
+        cited_papers=[]
+        for paper in cited_by:
+            p=paper_from_response(paper)
+            cited_papers.append(p)
+
+        return cited_papers
 
     def __str__(self):
         return self.info.title
 
     def __repr__(self):
-        return "Paper(id={}, id_type={}, title={})".format(self.info.id, self.info.id_type, self.info.title)
+        return "Paper(id={}, title={})".format(self.info.id, self.info.title)
 
     @classmethod
     def from_kb(cls, project, id):
         info=PaperInfo.from_kb(project, id)
-        paper=cls(paper_id=info.id, id_type=info.id_type)
+        paper=cls(paper_id=info.id)
         paper.info=info
         return paper
 

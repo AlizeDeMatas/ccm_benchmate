@@ -32,7 +32,10 @@ def _read(file):
         raise NotImplementedError("We can only read PDB or CIF files")
     return structure
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> upstream/master
 @dataclass(slots=True)
 class StructureInfo:
     name: str

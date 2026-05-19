@@ -1,17 +1,16 @@
 import os
-import warnings
 # this is weirdly needed to get tesseract to work
 os.environ["TESSDATA_PREFIX"]=f"{os.environ['CONDA_PREFIX']}/share/tessdata"
 
 import torch
-
-import pymupdf
-from PIL import Image
+import logging
 import pytesseract
-import layoutparser as lp
 
+from benchmate.literature.paper_processor_utils import *
 from benchmate.inference.inference import Inference
 
+
+#TODO this now needs to reflect the new inference class
 class PaperProcessor:
     """
     paper processor class, this is the main class for extracting text figures and generating embeddings for the papers
@@ -30,44 +29,64 @@ class PaperProcessor:
         self.inference = inference
 
     # pass a list of files
-    def extract(self, model, file_path, zoom=2):
+    def extract(self, model: LayoutONNX, file_path, cutoff=0.25, zoom=2):
         """
-        extract text and images from a pdf, this model gets all the figures and tables from the pdf and returns them as images
-        as well as extracting the pdf text using tesseract.
-        :param file_path: pdf file path
-        :return: text, figures and tables as pillow images
+        Extract:
+        - full article text (OCR)
+        - top-level figures only
+        - tables (optional)
         """
         doc = pymupdf.open(file_path)
-        zoom_x = zoom  # horizontal zoom
-        zoom_y = zoom  # vertical zoom/
-        mat = pymupdf.Matrix(zoom_x, zoom_y)
         texts = []
         figures = []
         tables = []
         for page in doc:
-            pix = page.get_pixmap(matrix=mat)
-            pix = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-            layout = model.detect(pix)
-            figure_blocks = lp.Layout([b for b in layout if b.type == 'Figure'])
-            table_blocks = lp.Layout([b for b in layout if b.type == 'Table'])
-            if len(figure_blocks) > 0:
-                for block in figure_blocks:
-                    coords = block.block
-                    coords = (coords.x_1, coords.y_1, coords.x_2, coords.y_2,)
-                    figure_img = pix.crop(coords)
-                    figures.append(figure_img)
+            pix = render_page(page, zoom=zoom)
+            W, H = pix.size
+            layout, scale, pad = model(pix)
+            raw_pictures = []
+            table_boxes = []
 
-            if len(table_blocks) > 0:
-                for block in table_blocks:
-                    coords = block.block
-                    coords = (coords.x_1, coords.y_1, coords.x_2, coords.y_2,)
-                    table_img = pix.crop(coords)
-                    tables.append(table_img)
+            for det in layout[0]:
+                x1, y1, x2, y2, score, cls_id = det
+                if score < cutoff:
+                    continue
+                cls_id = int(cls_id)
+                label = CLASS_NAMES.get(cls_id, "Unknown")
+
+                # scale back from letterbox
+                x1, x2 = (x1 - pad[0]) / scale, (x2 - pad[0]) / scale
+                y1, y2 = (y1 - pad[1]) / scale, (y2 - pad[1]) / scale
+                x1, y1 = max(0, x1), max(0, y1)
+                x2, y2 = min(W, x2), min(H, y2)
+                box = (x1, y1, x2, y2)
+
+                if label == "Picture":
+                    raw_pictures.append(box)
+
+                elif label == "Table":
+                    table_boxes.append(box)
+
+            #only get the full figure
+            filtered_pictures = filter_figures(
+                raw_pictures,
+                mode="top_level",
+                containment_thresh=0.8,
+            )
+
+            for b in filtered_pictures:
+                figures.append(pix.crop(b))
+
+            for b in table_boxes:
+                tables.append(pix.crop(b))
 
             page_text = pytesseract.image_to_string(pix)
             texts.append(page_text)
-        texts = [text.replace("\n", " ").replace("  ", " ") for text in texts]
-        article_text = " ".join(texts)
+
+        article_text = " ".join(
+            t.replace("\n", " ").replace("  ", " ")
+            for t in texts
+        )
 
         return article_text, tables, figures
 
@@ -83,11 +102,7 @@ class PaperProcessor:
         :return: paper class instance with all the attributes filled
         """
         if extract:
-            model = lp.Detectron2LayoutModel(   model_path=self.config["layout_model"]["model"],
-                                            config_path=self.config["layout_model"]["config"],
-                                            label_map={0: "Text", 1: "Title", 2: "List", 3: "Table", 4: "Figure"},
-                                            extra_config=["MODEL.ROI_HEADS.SCORE_THRESH_TEST", 0.8],
-                                                )
+            model=LayoutONNX(onnx_path=self.config["literature"]["layout_model"]["model"])
             for paper in papers:
                 paper.info.text, paper.info.tables, paper.info.figures = self.extract(model, paper.info.file_path)
         else:
@@ -95,16 +110,20 @@ class PaperProcessor:
 
         if embed_text:
             for paper in papers:
-                paper.info.text_chunks =self.inference.chunk_text(paper.info.text)
-                paper.info.chunk_embeddings= self.inference.embed_text(paper.info.text_chunks)
+                # the chunked text is a list of lists, since we are chunking one paper at a time the top level will
+                paper.info.text_chunks =self.inference.chunk_text(paper.info.text) # to this returns a list of (index, chunk)
+                chunks=[{"type":"text", "text":item[1]} for item in paper.info.text_chunks[0]]
+                paper.info.chunk_embeddings= self.inference.embed(chunks)
 
         if embed_images:
             for paper in papers:
                 if len(paper.info.figures)>0:
-                    paper.info.figure_embeddings = self.inference.embed_image(paper.info.figures)
+                    figs=[{"type":"image", "image":fig} for fig in paper.info.figures]
+                    paper.info.figure_embeddings = self.inference.embed(figs)
 
                 if len(paper.info.tables)>0:
-                    paper.info.table_embeddings = self.inference.embed_image(paper.info.tables)
+                    tabs=[{"type":"image", "image":table} for table in paper.info.tables]
+                    paper.info.table_embeddings = self.inference.embed(tabs)
 
         if interpret_images:
             for paper in papers:
@@ -122,9 +141,11 @@ class PaperProcessor:
                 paper.info.figure_interpretation_embeddings = []
                 paper.info.table_interpretation_embeddings = []
                 if len(paper.info.figure_interpretation) > 0:
-                    paper.info.figure_interpretation_embeddings.append(self.inference.embed_text(texts=paper.info.figure_interpretation))
+                    fig_int=[{"type":"text", "text":int} for int in paper.info.figure_interpretation]
+                    paper.info.figure_interpretation_embeddings.append(self.inference.embed(fig_int))
 
                 if len(paper.info.table_interpretation) > 0:
-                    paper.info.table_interpretation_embeddings.append(self.inference.embed_text(texts=paper.info.table_interpretation))
+                    tab_int=[{"type":"text", "text":int} for int in paper.info.table_interpretation]
+                    paper.info.table_interpretation_embeddings.append(self.inference.embed(tab_int))
         return papers
 

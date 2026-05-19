@@ -1,9 +1,12 @@
+import warnings
+
 import requests
 from Bio import Entrez
 from bs4 import BeautifulSoup as bs
+
 from benchmate.apis.utils import api_call
 
-# thin wrapper around the NCBI Entrez API and BioPython
+#TODO this is probably better done via requests
 class Ncbi:
     def __init__(self, access_key=None, email=None, collect_info=False):
         """
@@ -13,6 +16,7 @@ class Ncbi:
         """
         self.search_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
         self.fetch_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
+        self.links_url="https://eutils.ncbi.nlm.nih.gov/entrez/eutils/elinks.fcgi"
 
         if email is None and access_key is None:
             raise ValueError(
@@ -33,7 +37,6 @@ class Ncbi:
                 info=self.get_db_info(db)["FieldList"]
                 descriptions[db]=info[["FullName", "Description"]]
 
-    @api_call
     def search(self, db, query, retmax=100):
         """
         thin wrapper around the NCBI Entrez esearch
@@ -46,6 +49,19 @@ class Ncbi:
         record = Entrez.read(stream)
         stream.close()
         ids = record["IdList"]
+        return ids
+
+    @api_call
+    def links(self, from_db, to_db, id):
+        linkname=f"{from_db}_{to_db}"
+        stream=Entrez.elink(dbfrom=from_db, id=id, linkname=linkname)
+        try:
+            record=Entrez.read(stream)[0]["LinkSetDb"][0]
+        except:
+            warnings.warn(f"no connections between {from_db} and {to_db} for {id}")
+            return []
+        ids=[item["Id"] for item in record["Link"]]
+        stream.close()
         return ids
 
     @api_call

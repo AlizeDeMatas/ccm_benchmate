@@ -87,7 +87,7 @@ class VariantSearch:
 
             results={}
             name=table.__tablename__
-            res=project.kb.session.execute(stmt).fetchall()
+            res=self.project.kb.session.execute(stmt).fetchall()
             if name=="sequencevariant":
                 vars=[]
                 for item in res:
@@ -114,7 +114,7 @@ class VariantSearch:
         return results
 
 
-@dataclass(frozen=True)
+@dataclass(slots=True)
 class BaseVariant:
     id: [str, uuid4()]
     chrom: str
@@ -135,7 +135,7 @@ class BaseVariant:
         """Add or update an annotation."""
         self.annotations[key] = value
 
-@dataclass(frozen=True)
+@dataclass(slots=True)
 class SequenceVariant(BaseVariant):
     length: Optional[int]=None
 
@@ -191,7 +191,7 @@ class SequenceVariant(BaseVariant):
         return variant
 
 
-@dataclass(frozen=True)
+@dataclass(slots=True)
 class StructuralVariant(BaseVariant):
     svlen: Optional[int] = None,  # length of the sv
     cn: Optional[int] = None,
@@ -252,7 +252,7 @@ class StructuralVariant(BaseVariant):
         return variant
 
 
-@dataclass(frozen=True)
+@dataclass(slots=True)
 class TandemRepeatVariant(BaseVariant):
     """Class for Tandem Repeat variants (SRWGS and LRWGS)."""
     motif: Optional[str] = None,

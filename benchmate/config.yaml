@@ -19,66 +19,103 @@ literature:
    describing that you are looking at figure from a scientific publication. Whenever possible very briefly describe each sections of the figure 
    and then give an overall conclusion about what the figure tells us"
   layout_model: #this is specific to literature, other models will not be using it also uses a specific model
-    config: benchmate/models/lp_model/config.yaml
-    model: benchmate/models/lp_model/pytorch_model.bin
-    kwargs: {}
+    model: /hpf/largeprojects/ccmbio/acelik_files/ccm_benchmate/benchmate/models/lp_model/yolo26m_doc_layout.onnx
   pdf_path: benchmate/data/pdfs
+  openalex_api_key: api_key_goes_here
 
 # all these models will be shared with other data modalities
 inference:
+  device: cuda
+
   interpret_image: #this is the model that is used to interpret figures
-    cache_dir: benchmate/models/hf_models
+    cache_dir: /hpf/largeprojects/ccmbio/acelik_files/ccm_benchmate/benchmate/models/hf_models
     model_name: Qwen/Qwen2.5-VL-3B-Instruct
-    model_kwargs:
-      max_new_tokens: 100
+    model_kwargs: {}
     processor_kwargs: {}
-    model_class: transformers.QwenForConditionalGeneration
-    processor_class: transformers.AutoProcessor
-    generation_kwargs: {} # other generation kwargs that you want to pass in, this is passed to model.generate
+    model_class: Qwen2_5_VLForConditionalGeneration
+    processor_class: AutoProcessor
+    generation_kwargs:
+      max_new_tokens: 100 # other generation kwargs that you want to pass in, this is passed to model.generate
     quantization_kwargs: {} # if you want to use bitsandbytes quantization you can pass it here
 
-  text_embedding: #this is the model that is used to embed the text
-    cache_dir: benchmate/models/hf_models
-    model: Qwen/Qwen3-Embedding-0.6B
-    dimensions: 1024
-    kwargs: {}
+  embeddings: #this is the model that is used to embed the text
+    cache_dir: /hpf/largeprojects/ccmbio/acelik_files/ccm_benchmate/benchmate/models/hf_models
+    model_name: Qwen/Qwen3-VL-Embedding-8B
+    model_kwargs: {}
+    processor_kwargs: {}
+    prompt: "Represent this scientific document for retrieval, focusing on methodology, data, and technical scientific meaning."
+    quantization_kwargs:
+      load_in_4bit: true
+      bnb_4bit_quant_type: nf4
+      bnb_4bit_use_double_quant: true
+    dimensions: 4096
 
-  text_rerank:
-    cache_dir: benchmate/models/hf_models
-    model: Qwen/Qwen3-Rerank-0.6B
-    prefix: "<|im_start|>system\n
-            Judge whether the Document meets the requirements based on the Query and the Instruct provided. 
-            Note that the answer can only be \"yes\" or \"no\".<|im_end|>\n
-            <|im_start|>user\n"
-    suffix: "<|im_end|>\n
-            <|im_start|>assistant\n
-            <think>\n\n</think>\n\n"
+  rerank:
+    cache_dir: /hpf/largeprojects/ccmbio/acelik_files/ccm_benchmate/benchmate/models/hf_models
+    model_name: Qwen/Qwen3-VL-Reranker-8B
+    model_kwargs: { }
+    processor_kwargs: { }
+    quantization_kwargs: {}
+    prompt: "
+    You are a scientific reranking model.
+    Evaluate how relevant the candidate is to the query.
+    Consider:
+      - Exact match of scientific concept, method, or finding
+      - Correct interpretation of figures or tables if present
+      - Alignment of key variables and outcomes
 
-  image_embed:
-    cache_dir: benchmate/models/hf_models
-    model: microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224
-    processor_class: transformers.CLIPProcessor
-    model_class: transformers.CLIPModel
-    dimensions: 512
-    kwargs: {}
+    Penalize:
+      - Partial matches
+      - Different experimental setups
+      - Superficial keyword overlap
 
-  image_rerank:
-    cache_dir: benchmate/models/hf_models
-    model: vidore/colpali-v1.3
-    model_class: transformers.ColPaliForRetrieval
-    processor_class: transformers.ColPaliProcessor
+    Query:
+      {query}
+
+    Candidate:
+      {candidate}
+
+    Output only:
+    Score: <0-100>
+"
 
   semantic_chunk:
-    model: benchmate/models/m2v_model
+    chunking_model: /hpf/largeprojects/ccmbio/acelik_files/ccm_benchmate/benchmate/models/m2v_model
     chunking_kwargs:
-      min_chunk_size: 100
+      chunk_size: 100
       min_sentences: 1
-      return_type: texts
       threshold: 0.75
+
+  extract_info:
+    cache_dir: /hpf/largeprojects/ccmbio/acelik_files/ccm_benchmate/benchmate/models/hf_models
+    model_name: google/medgemma-27b-text-it
+    model_class: AutoModelForCausalLM
+    model_kwargs: {}
+    tokenizer_kwargs: {}
+    quantization_kwargs:
+      load_in_4bit: true
+      bnb_4bit_quant_type: nf4
+      bnb_4bit_use_double_quant: true
+    generation_kwargs:
+       max_new_tokens: 250
+    sys_prompt: "You are an expert scientist whose sole function is to extract structured information from CV text and return it as valid JSON.
+
+    ## Output Rules
+    - Return ONLY valid JSON. No prose, no markdown, no preamble, no code fences.
+    - If a field is not found, use null for scalar values and [] for arrays.
+    - Never hallucinate, infer, or embellish any information not explicitly present in the text.
+    
+    ## Formatting Rules
+    - Normalize whitespace: strip leading/trailing spaces, collapse internal multiple spaces.
+    - Preserve original casing for proper nouns
+    - Return all arrays in the order they appear in the source text."
+
 
 #these are binary locations if needed, you can leave just as the callable if they are in your $PATH
 #if you leave them blank they you will get a warning and they will not be available
 alignment:
+  folddisco_bin: folddisco
+  folddisco_db_root: benchmate/data/folddisco_db
   foldseek_bin: foldseek
   foldseek_db_root: benchmate/data/foldseek_db #this is where all the databases will be created/downloaded etc.
   mmseqs2_bin: mmseqs
