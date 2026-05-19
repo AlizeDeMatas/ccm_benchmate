@@ -242,7 +242,7 @@ class Structure(Base):
     project_id = Column(Integer, ForeignKey('project.id'))
     name=Column(String)
     chains=Column(JSONB) #all the chaing is the pdb, I'm just storing the whole thing here not sure if a good idea
-    atoms=Column(LargeBinary) #this is a pdb dump
+    atoms=Column(String) #this is now a string instead of pdb dump
     annotations=Column(JSONB)
 
 class Molecule(Base):

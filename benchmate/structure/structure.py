@@ -33,7 +33,7 @@ def _read(file):
     return structure
 
 
-@dataclass
+@dataclass(slots=True)
 class StructureInfo:
     name: str
     atoms: biotite.structure.AtomArray
@@ -86,22 +86,11 @@ class StructureInfo:
         chains = row["chains"]
 
         # pdb pay load from the to_kb 
-        atoms_blob = row["atoms"]
+        atoms_text = row["atoms"]
         annotations = row["annotations"]
 
-
-        # ran into attribute errors, memoryview to bytes , if bytes decode to utf- 8, crash if anything else
-        if isinstance(atoms_blob, memoryview):
-            atoms_blob = atoms_blob.tobytes()
-        elif isinstance(atoms_blob, str):
-            atoms_text = atoms_blob
-        elif isinstance(atoms_blob, bytes):
-            atoms_text = atoms_blob.decode("utf-8")
-        else:
-            raise TypeError(f"Unexpected atoms type: {type(atoms_blob)}")
-
-        if not isinstance(atoms_blob, str):
-            atoms_text = atoms_blob.decode("utf-8")
+        if not isinstance(atoms_text, str):
+            raise TypeError(f"Expected atoms as str, got {type(atoms_text)}")
 
         # rebuild biotite struct
         buf = io.StringIO(atoms_text)
@@ -145,6 +134,7 @@ class Structure:
         html_report = os.path.abspath(destination + "results.html")
         return aligned_pdb, rotation_file, html_report
 
+
     def find_pockets(self, **kwargs):
         """
         Run fpocket on this structure and return detected pocket info.
@@ -163,7 +153,7 @@ class Structure:
 
         return pocket_files, pocket_coords
 
-    def to_3di(self, chain):
+    def to_3di(self, chain): 
         "for a chain convert the structure to 3di"
         chain=self._get_chain(chain)
         seq, _ = str(alphabet.to_3di(chain)[0])
@@ -289,6 +279,41 @@ class Structure:
         struct=cls(name=info.name, atoms=info.atoms, annotations=info.annotations)
         struct.info=info
         return struct
+    
+    @classmethod
+    def search(cls, project, name, regex=True):
+        """
+        Search for structures by name in the knowledge base.
+ 
+        :param project: project wrapper with .kb and .session
+        :param name: the name (or pattern) to search for
+        :param regex: if False (default), performs an exact identity match;
+                      if True, treats ``name`` as a SQL LIKE pattern, e.g.
+                      ``"7Z60%"`` matches anything starting with "7Z60", and
+                      ``"%test%"`` matches anything containing "test".
+        :return: list of Structure objects whose names match
+        """
+        structure_table = project.kb.db_tables["structure"]
+ 
+        if regex:
+            stmt = select(structure_table).where(
+                structure_table.c.project_id == project.id,
+                structure_table.c.name.like(name)
+            )
+        else:
+            stmt = select(structure_table).where(
+                structure_table.c.project_id == project.id,
+                structure_table.c.name == name
+            )
+ 
+        rows = project.kb.session.execute(stmt).fetchall()
+ 
+        results = []
+        for row in rows:
+            row_id = row._mapping["id"]
+            results.append(cls.from_kb(project, row_id))
+        return results
+ 
 
     def to_kb(self, project):
         return self.info.to_kb(project)
