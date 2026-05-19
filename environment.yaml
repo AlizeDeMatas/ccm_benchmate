@@ -4,20 +4,46 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - conda-forge:tesseract=5.3.1
+  - tesseract=5.3.1
   - cuda-toolkit
-  - mustang
   - mmseqs2
-  - python=3.10
-  - usalign
-  - viennarna
-  - dssp
-  - vina
+  - fpocket
   - foldseek
+  - folddisco
   - clustalo
   - blast
+  - viennarna
+  - python=3.12
   - pip
   - pip:
-      - torch==2.5.1
-      - torchvision==0.20.1
+      - --extra-index-url https://download.pytorch.org/whl/cu128
+      - torch==2.2.2+cu128
+      - torchvision==0.17.2+cu128
+      - transformers
+      - pandas==2.1.4
+      - biopython
+      - beautifulsoup4
+      - sentence-transformers
+      - qwen_vl_utils
+      - accelerate
+      - requests
+      - SQLAlchemy==1.4.54
+      - rdkit
+      - biotite
+      - alphagenome
+      - model2vec
+      - psycopg2-binary
+      - bitsandbytes
+      - qwen_vl_utils
+      - SQLAlchemy==1.4.54
+      - chonkie[st]==0.3.0
+      - git+https://github.com/celalp/usearch-molecules.git
+      - accelerate
+      - lxml
+      - pysam
+      - pytesseract
+      - pgvector
+      - pymupdf
+      - onnxruntime-gpu
+      - pydantic
 

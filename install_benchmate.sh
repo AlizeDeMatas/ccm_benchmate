@@ -8,7 +8,7 @@ show_usage(){
   echo "-d postgres location default current directory"
   echo "-c create database"
   echo "-e .env file that contains the database name, port, username and password see .env for an example"
-  exit 1
+  exit 0
 }
 
 while getopts 'e:d:cph' flag; do
@@ -93,15 +93,19 @@ EOSQL
   psql -v ON_ERROR_STOP=1 --port "${PG_PORT}" --dbname "${PG_DATABASE}" <<-EOSQL
     CREATE EXTENSION IF NOT EXISTS vector;
 EOSQL
-fi
 
-echo "installing python requirements"
-pip install -r requirements.txt
+EOSQL
+  psql -v ON_ERROR_STOP=1 --port "${PG_PORT}" --dbname "${PG_DATABASE}" <<-EOSQL
+    CREATE EXTENSION IF NOT EXISTS rdkit;
+EOSQL
+
+fi
 
 echo "installing benchmate itself"
 pip install .
 
 echo "Done!"
+exit 0
 
 
 
