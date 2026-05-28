@@ -1,12 +1,11 @@
 import gc
 from functools import cached_property
-from collections.abc import Iterable
+
 import json
 import torch
 
-from transformers import (AutoTokenizer, AutoModelForCausalLM, AutoProcessor, AutoModelForImageTextToText,
-                          CLIPModel, CLIPProcessor, ColPaliProcessor,BitsAndBytesConfig,
-                          ColPaliForRetrieval, Qwen2_5_VLForConditionalGeneration)
+from transformers import (AutoTokenizer, AutoModelForCausalLM, AutoProcessor, BitsAndBytesConfig,
+                          Qwen2_5_VLForConditionalGeneration)
 
 from chonkie import SemanticChunker, Model2VecEmbeddings
 from sentence_transformers import SentenceTransformer, CrossEncoder

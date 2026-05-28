@@ -1,6 +1,5 @@
 import os
 import tarfile
-import json
 
 import requests
 

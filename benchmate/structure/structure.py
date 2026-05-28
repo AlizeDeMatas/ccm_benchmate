@@ -1,11 +1,13 @@
+import json
 import os
 import subprocess
 import io
 from dataclasses import dataclass
 from typing import List, Union, Tuple, Optional
 
-from sqlalchemy import select
+from sqlalchemy import func, select, text
 from sqlalchemy.exc import NoResultFound
+from sqlalchemy.dialects.postgresql import JSONB
 
 import biotite
 from biotite.structure import distance, get_chains, alphabet, to_sequence
@@ -32,10 +34,7 @@ def _read(file):
         raise NotImplementedError("We can only read PDB or CIF files")
     return structure
 
-<<<<<<< HEAD
 
-=======
->>>>>>> upstream/master
 @dataclass(slots=True)
 class StructureInfo:
     name: str
@@ -275,13 +274,6 @@ class Structure:
          # structure is already a Biotite AtomArray, so just pass it through
         atoms = structure
         return cls(name, atoms)
-
-    @classmethod
-    def from_kb(cls, project, id):
-        info=StructureInfo.from_kb(project, id)
-        struct=cls(name=info.name, atoms=info.atoms, annotations=info.annotations)
-        struct.info=info
-        return struct
     
     @classmethod
     def search(cls, project, name, regex=True):
@@ -291,9 +283,9 @@ class Structure:
         :param project: project wrapper with .kb and .session
         :param name: the name (or pattern) to search for
         :param regex: if False (default), performs an exact identity match;
-                      if True, treats ``name`` as a SQL LIKE pattern, e.g.
-                      ``"7Z60%"`` matches anything starting with "7Z60", and
-                      ``"%test%"`` matches anything containing "test".
+                      if True, treats `name` as a SQL LIKE pattern, e.g.
+                      `"7Z60%"` matches anything starting with "7Z60", and
+                      `"%test%"` matches anything containing "test".
         :return: list of Structure objects whose names match
         """
         structure_table = project.kb.db_tables["structure"]
@@ -316,8 +308,74 @@ class Structure:
             row_id = row._mapping["id"]
             results.append(cls.from_kb(project, row_id))
         return results
+
+
+    # JSON Searches 
+    @classmethod
+    def search_by_annotation(cls, project, annotation_key: Optional[str]=None, annotation_value: Optional[Any] = None):
+        """
+        Search for structures by the content of their annotations JSONB column.
  
+ 
+        Three search modes are selected automatically based on which
+        arguments are provided:
+ 
+        * **key + value** — both arguments supplied.  
+        * **key only** — only *annotation_key* supplied.  Matches any row
+          whose top-level ``annotations`` object contains that key,
+          regardless of value.
+        * **value only** — only *annotation_value* supplied.  Matches any
+          row where the given value appears as the value of *any* top-level
+          key.
+ 
+        :param project: project wrapper with .kb and .session.
+        :param annotation_key: key to search for (str or None).
+        :param annotation_value: value to search for (any JSON-serialisable
+                                 type, or None).
+        :return: list of matching Structure objects.
+        :raises ValueError: if neither argument is provided.
+ 
+        """
+        if annotation_key is None and annotation_value is None:
+            raise ValueError(
+                "Provide at least one of: annotation_key or annotation_value."
+            )
+ 
+        structure_table = project.kb.db_tables["structure"]
+        jsonb_col = structure_table.c.annotations.cast(JSONB)
+ 
+        if annotation_key is not None and annotation_value is not None:
+            annotation_filter = func.jsonb_path_exists(
+                jsonb_col,
+                f'$.**."{annotation_key}" ? (@ == $val)',
+                json.dumps({"val": annotation_value}),
+            )
+        elif annotation_key is not None:
+            annotation_filter = func.jsonb_path_exists(
+                jsonb_col,
+                f'$.**."{annotation_key}"',
+            )
+        else:
+            annotation_filter = func.jsonb_path_exists(
+                jsonb_col,
+                '$.** ? (@ == $val)',
+                json.dumps({"val": annotation_value}),
+            )
+ 
+        stmt = select(structure_table).where(
+            structure_table.c.project_id == project.id,
+            annotation_filter,
+        )
+        rows = project.kb.session.execute(stmt).fetchall()
+ 
+        return [cls.from_kb(project, row._mapping["id"]) for row in rows]
+
+    @classmethod
+    def from_kb(cls, project, id):
+        info=StructureInfo.from_kb(project, id)
+        struct=cls(name=info.name, atoms=info.atoms, annotations=info.annotations)
+        struct.info=info
+        return struct
 
     def to_kb(self, project):
         return self.info.to_kb(project)
-

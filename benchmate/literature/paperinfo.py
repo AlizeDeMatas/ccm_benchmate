@@ -1,3 +1,5 @@
+import warnings
+
 from dataclasses import dataclass
 from typing import Optional
 import io
@@ -7,7 +9,6 @@ import numpy as np
 from sqlalchemy import select, insert
 from PIL import Image
 from sqlalchemy.exc import NoResultFound
-from sqlalchemy.testing.plugin.plugin_base import warnings
 
 from benchmate.utils.general_utils import DataIntegrityError
 
@@ -261,7 +262,6 @@ class PaperInfo:
             paper.text_chunks = [chunk[0] for chunk in chunks]
             paper.chunk_embeddings = [chunk[1] for chunk in chunks]
 
-        #TODO reference creatingn does not work here I need to check what's being returned.
         references = select(references_table.c.target_id).where(references_table.c.paper_id == id)
         references = project.kb.session().execute(references).fetchall()
         if len(references) == 0:

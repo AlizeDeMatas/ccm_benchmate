@@ -1,4 +1,4 @@
-import warnings
+
 from functools import cached_property
 import importlib
 from dataclasses import dataclass
@@ -6,7 +6,6 @@ from datetime import datetime
 from functools import wraps
 
 import pandas as pd
-from model2vec import StaticModel
 from sqlalchemy import insert, select
 from sqlalchemy.exc import NoResultFound
 
